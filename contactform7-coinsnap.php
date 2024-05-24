@@ -28,16 +28,16 @@ define('WPCF7_LOAD_JS', false);
 class cf7_coinsnap
 {
     public static function load()
-    {       
-        require_once (plugin_dir_path(__FILE__) . '/library/autoload.php');	
-        require_once('class-cf7-coinsnap.php');        
+    {
+        require_once (plugin_dir_path(__FILE__) . '/library/autoload.php');
+        require_once('class-cf7-coinsnap.php');
         Cf7Coinsnap::get_instance();
     }
 }
 
 function cf7_coinsnap_activate()
-{	
-	
+{
+
     	global $wpdb;
 		$table_name = $wpdb->prefix . "cf7_coinsnap_extension";
 		if($wpdb->get_var("SHOW TABLES LIKE '$table_name'") != $table_name) {
@@ -55,15 +55,27 @@ function cf7_coinsnap_activate()
 				) DEFAULT COLLATE=utf8_general_ci";
 
 			require_once(ABSPATH . 'wp-admin/includes/upgrade.php');
-			dbDelta($sql);			
+			dbDelta($sql);
 		}
-	
+
 }
 
 function cf7_coinsnap_deactivate()
-{		
+{
     	global $wpdb;
 		$table_name = $wpdb->prefix . "cf7_coinsnap_extension";
-		$wpdb->query( 'DROP TABLE IF EXISTS ' . $table_name ); 		
-	
+		$wpdb->query( 'DROP TABLE IF EXISTS ' . $table_name );
+
 }
+
+// Add custom styling.
+function my_plugin_enqueue_admin_styles($hook)
+{
+	// Register the CSS file
+	wp_register_style('cf7_coinsnap-admin-styles', plugins_url('css/cf7_coinsnap-styles.css', __FILE__));
+
+	// Enqueue the CSS file
+	wp_enqueue_style('cf7_coinsnap-admin-styles');
+}
+
+add_action('admin_enqueue_scripts', 'my_plugin_enqueue_admin_styles');
