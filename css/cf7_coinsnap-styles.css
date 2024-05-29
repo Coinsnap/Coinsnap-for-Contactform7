@@ -33,4 +33,9 @@
       margin-bottom: 0;
     }
   }
+
+  textarea {
+    width: 400px;
+    resize: none
+  }
 }
