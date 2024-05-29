@@ -107,7 +107,7 @@ function cf7_coinsnap_check_criteria_and_show_warning() {
 
 	if ( get_option( 'cf7_coinsnap_check_show_warning' ) ) {
 		echo '<div class="notice notice-error is-dismissible">';
-		echo '<p><strong>Warning:</strong> You must include `cs_amount` field in the Coinsnap form in order to sucesfully connect to your Coinsnap account.</p>';
+		echo '<p><strong>Warning:</strong> You must include `cs_amount` field in the Coinsnap form in order to successfully connect to your Coinsnap account.</p>';
 		echo '</div>';
 	}
 }
