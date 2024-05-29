@@ -175,23 +175,11 @@ class Cf7Coinsnap {
                            <input type="checkbox" value="1" name="coinsnap_enable" ' . $checked . '><label>Enable Coinsnap on this form</label>
                           </div>
                         </div>';
-		$admin_settings .= '<div class="cf7-coinsnap_row">
-                            <div class="cf7-coinsnap-field">
-                            <textarea readonly rows="6">
-<label>Enter amount</label>
-[number* cs_amount min:0.01]
-<label>Your name</label>
-[text cs_name]
-<label>Your email</label>
-[email cs_email]
-</textarea>
-                            <div class="description">Please copy the contents of the textarea above and paste it in your form. Note that the `cs_amount` field is mandatory, `cs_name` and `cs_email` are optional.</div>
-                          </div>
-                        </div>';
+
 		$admin_settings .= '<div class="cf7-coinsnap_row"><hr></div>';
 		$admin_settings .= '<div class="cf7-coinsnap_row">
                           <label>Currency Code (required)</label>
-                          <div class="cf7-coinsnap-field"><input type="text" value="' . $coinsnap_currency . '" name="coinsnap_currency">
+                          <div class="cf7-coinsnap-field"><input type="text" value="' . $coinsnap_currency . '" placeholder="EUR" name="coinsnap_currency">
                           </div>
                         </div>';
 		$admin_settings .= '<div class="cf7-coinsnap_row">
@@ -210,6 +198,28 @@ class Cf7Coinsnap {
                           <label>Success URL</label>
                           <div class="cf7-coinsnap-field"><input class="long-input" type="text" value="' . $coinsnap_s_url . '" name="coinsnap_s_url">
                           <div class="description">Please enter here the URL of the page on your website that the buyer will be re-directed to after he finalizes the transaction. (Note: You must create this page, i.e. a “thank you”-page, yourself on your website!)</div> 
+                          </div>
+                        </div>';
+		$admin_settings .= '<div class="cf7-coinsnap_row"><hr></div>';
+		$admin_settings .= '<div class="cf7-coinsnap_row"><h3>How do I integrate Bitcoin-Lighting Payment in my form?</h3></div><ol>';
+		$admin_settings .= '<li class="cf7-coinsnap_row">To specify the cost of your offering, use the number element and name it <strong>cs_amount</strong>: [number* cs_amount min:0.01]</li>';
+		$admin_settings .= '<li class="cf7-coinsnap_row">You define the cost of your offering by manipulating the value of the 0.01 in the tag, i.e. writing [number* cs_amount min:2.50]</li>';
+		$admin_settings .= '<li class="cf7-coinsnap_row">If you want to see the name and/or the email of the buyer in the transaction overview in your Coinsnap account, name the respective fields accordingly <strong>cs_name</strong> and <strong>cs_email</strong>: [text cs_name] [email cs_email]</li>';
+		$admin_settings .= '</ol><div class="cf7-coinsnap_row"><p>NOTE: <strong>cs_amount</strong> is a mandatory field you must use in your form to make the plugin work. <strong>cs_name</strong> and <strong>cs_email</strong> you only need to use if you want to see this information in your Coinsnap transaction overview.</p></div>';
+		$admin_settings .= '<div class="cf7-coinsnap_row"><hr></div>';
+		$admin_settings .= '<div class="cf7-coinsnap_row"><h3>Or copy this code into your form, and then add all other fields needed to create your transactional form:</h3></div>';
+
+		$admin_settings .= '<div class="cf7-coinsnap_row">
+                            <div class="cf7-coinsnap-field">
+                            <textarea readonly rows="6">
+<label>Enter amount</label>
+[number* cs_amount min:0.01]
+<label>Your name</label>
+[text cs_name]
+<label>Your email</label>
+[email cs_email]
+</textarea>
+                            <div class="description">Please copy the contents of the textarea above and paste it in your form. Note that the `<strong>cs_amount</strong>` field is mandatory, `<strong>cs_name</strong>` and `<strong>cs_email</strong>` are optional.</div>
                           </div>
                         </div>';
 		$admin_settings .= '<input type="hidden" name="post" value="' . $post_id . '"></div>';
