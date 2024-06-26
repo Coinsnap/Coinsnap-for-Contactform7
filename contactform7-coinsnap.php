@@ -1,5 +1,5 @@
 <?php
-/*
+/**
  * Plugin Name:     Coinsnap for Contact Form 7
  * Plugin URI:      https://www.coinsnap.io
  * Description:     Provides a <a href="https://coinsnap.io">Coinsnap</a>  - Bitcoin + Lightning Payment Gateway for <a href="https://wordpress.org/plugins/contact-form-7/">Contact Form 7</a>.
