@@ -3,7 +3,7 @@
  * Plugin Name:     Coinsnap for Contact Form 7
  * Plugin URI:      https://www.coinsnap.io
  * Description:     Provides a <a href="https://coinsnap.io">Coinsnap</a>  - Bitcoin + Lightning Payment Gateway for <a href="https://wordpress.org/plugins/contact-form-7/">Contact Form 7</a>.
- * Version:         1.0.1
+ * Version:         1.0.2
  * Author:          Coinsnap
  * Author URI:      https://coinsnap.io/
  * Text Domain:     coinsnap-for-contactform7
@@ -19,28 +19,6 @@
 
 defined( 'ABSPATH' ) || exit;
 define( 'COINSNAP_REFERRAL_CODE', 'D19827' );
-
-if (!function_exists('is_plugin_active')) {
-	include_once(ABSPATH . 'wp-admin/includes/plugin.php');
-}
-
-function cf7_coinsnap_check_contact_form_7_dependency() {
-	if (!is_plugin_active('contact-form-7/wp-contact-form-7.php')) {
-		add_action('admin_notices', 'cf7_coinsnap_dependency_notice');
-		// Optionally, deactivate your plugin
-		deactivate_plugins(plugin_basename(__FILE__));
-	}
-}
-add_action('admin_init', 'cf7_coinsnap_check_contact_form_7_dependency');
-
-function cf7_coinsnap_dependency_notice() {
-	?>
-	<div class="notice notice-error">
-		<p><?php _e('Coinsnap for Contact Form 7 plugin requires Contact Form 7 to be installed and activated.', 'cf7_coinsnap_textdomain'); ?></p>
-	</div>
-	<?php
-}
-
 add_action( 'init', array( 'cf7_coinsnap', 'load' ), 5 );
 register_activation_hook( __FILE__, "cf7_coinsnap_activate" );
 register_deactivation_hook( __FILE__, "cf7_coinsnap_deactivate" );
@@ -75,14 +53,33 @@ function cf7_coinsnap_activate() {
 		require_once( ABSPATH . 'wp-admin/includes/upgrade.php' );
 		dbDelta( $sql );
 	}
-
 }
 
 function cf7_coinsnap_deactivate() {
 	global $wpdb;
 	$table_name = $wpdb->prefix . "cf7_coinsnap_extension";
 	$wpdb->query( 'DROP TABLE IF EXISTS ' . $table_name );
+}
 
+if (!function_exists('is_plugin_active')) {
+	include_once(ABSPATH . 'wp-admin/includes/plugin.php');
+}
+
+function cf7_coinsnap_check_contact_form_7_dependency() {
+	if (!is_plugin_active('contact-form-7/wp-contact-form-7.php')) {
+		add_action('admin_notices', 'cf7_coinsnap_dependency_notice');
+		// Optionally, deactivate your plugin
+		deactivate_plugins(plugin_basename(__FILE__));
+	}
+}
+add_action('admin_init', 'cf7_coinsnap_check_contact_form_7_dependency');
+
+function cf7_coinsnap_dependency_notice() {
+	?>
+  <div class="notice notice-error">
+    <p><?php _e('Coinsnap for Contact Form 7 plugin requires Contact Form 7 to be installed and activated.', 'cf7_coinsnap_textdomain'); ?></p>
+  </div>
+	<?php
 }
 
 // Add custom styling.
@@ -95,7 +92,6 @@ function cf7_coinsnap_enqueue_admin_styles( $hook ) {
 }
 
 add_action( 'admin_enqueue_scripts', 'cf7_coinsnap_enqueue_admin_styles' );
-
 
 // Hook into the 'admin_notices' action
 add_action( 'admin_notices', 'cf7_coinsnap_check_criteria_and_show_warning', 10, 1 );

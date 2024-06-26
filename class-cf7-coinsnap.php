@@ -350,7 +350,6 @@ class Cf7Coinsnap {
 			array( 'id' => $order_id ), array( '%s', '%s' ), array( '%d' )
 		);
 
-
 		echo "OK";
 		exit;
 	}
@@ -412,21 +411,15 @@ class Cf7Coinsnap {
 	}
 
 	public function deleteWebhook( string $storeId, string $apiKey, string $webhookid ): bool {
-
 		try {
 			$whClient = new \Coinsnap\Client\Webhook( $this->getApiUrl(), $apiKey );
-
             $webhook = $whClient->deleteWebhook(
                 $storeId,   //$storeId
                 $webhookid, //$url
             );
             return true;
         } catch (\Throwable $e) {
-
             return false;
         }
     }
-
-
-
 }
