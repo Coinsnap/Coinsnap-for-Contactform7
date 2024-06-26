@@ -59,6 +59,7 @@ function cf7_coinsnap_deactivate() {
 	global $wpdb;
 	$table_name = $wpdb->prefix . "cf7_coinsnap_extension";
 	$wpdb->query( 'DROP TABLE IF EXISTS ' . $table_name );
+	delete_option( 'cf7_coinsnap_check_show_warning' );
 }
 
 if (!function_exists('is_plugin_active')) {
