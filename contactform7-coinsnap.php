@@ -140,3 +140,27 @@ function cf7_coinsnap_check_field_existence( $contact_form ) {
 		update_option( 'cf7_coinsnap_check_show_warning', true );
 	}
 }
+
+/**
+ * Function to check if the CF7 plugin is activated..
+ *
+ */
+if ( !function_exists( 'is_plugin_active' ) ) {
+	require_once ABSPATH . 'wp-admin/includes/plugin.php';
+}
+
+function cf7_coinsnap_check_dependency_plugin() {
+	if ( !is_plugin_active( 'contact-form-7/wp-contact-form-7.php' ) ) {
+		add_action( 'admin_notices', 'cf7_coinsnap_dependency_plugin_notice' );
+		deactivate_plugins( plugin_basename( __FILE__ ) );
+	}
+}
+add_action( 'admin_init', 'cf7_coinsnap_check_dependency_plugin' );
+
+function cf7_coinsnap_dependency_plugin_notice() {
+	?>
+  <div class="notice notice-error is-dismissible">
+    <p><?php _e( 'This plugin requires the Contact Form 7 Plugin to be installed and activated.', 'text-domain' ); ?></p>
+  </div>
+	<?php
+}
