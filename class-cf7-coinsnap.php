@@ -18,8 +18,6 @@ class Cf7Coinsnap {
 		add_action( 'wpcf7_mail_sent', array( $this, 'redirect_payment' ) );
 		add_action( 'init', array( $this, 'process_webhook' ) );
 		add_action( 'admin_menu', array( $this, 'cf7_coinsnap_admin_menu' ), 20 );
-		//add_filter('wpcf7_skip_mail', '__return_true');
-
 	}
 
 	public static function get_instance() {
@@ -114,7 +112,6 @@ class Cf7Coinsnap {
 
 	function cf7_save_settings( $cf7 ) {
 
-
 		$post_id = sanitize_text_field( $_POST['post'] );
 		if ( ! empty( $_POST['coinsnap_enable'] ) ) {
 			$coinsnap_enable = sanitize_text_field( $_POST['coinsnap_enable'] );
@@ -123,16 +120,10 @@ class Cf7Coinsnap {
 			update_post_meta( $post_id, "_cf7_coinsnap_enable", 0 );
 		}
 
-
-//		update_post_meta( $post_id, "_cf7_coinsnap_amounts", sanitize_text_field( $_POST['coinsnap_amounts'] ) );
-//		update_post_meta( $post_id, "_cf7_coinsnap_name", sanitize_text_field( $_POST['coinsnap_name'] ) );
-//		update_post_meta( $post_id, "_cf7_coinsnap_email", sanitize_text_field( $_POST['coinsnap_email'] ) );
-
 		update_post_meta( $post_id, "_cf7_coinsnap_currency", sanitize_text_field( $_POST['coinsnap_currency'] ) );
 		update_post_meta( $post_id, "_cf7_coinsnap_store_id", sanitize_text_field( $_POST['coinsnap_store_id'] ) );
 		update_post_meta( $post_id, "_cf7_coinsnap_api_key", sanitize_text_field( $_POST['coinsnap_api_key'] ) );
 		update_post_meta( $post_id, "_cf7_coinsnap_s_url", sanitize_text_field( $_POST['coinsnap_s_url'] ) );
-
 	}
 
 
@@ -154,10 +145,6 @@ class Cf7Coinsnap {
 
 
 		$enable       = get_post_meta( $post_id, "_cf7_coinsnap_enable", true );
-		$amount_field = get_post_meta( $post_id, "_cf7_coinsnap_amounts", true );
-		$name_field   = get_post_meta( $post_id, "_cf7_coinsnap_name", true );
-		$email_field  = get_post_meta( $post_id, "_cf7_coinsnap_email", true );
-
 		$coinsnap_store_id = get_post_meta( $post_id, "_cf7_coinsnap_store_id", true );
 		$coinsnap_api_key  = get_post_meta( $post_id, "_cf7_coinsnap_api_key", true );
 		$coinsnap_s_url    = get_post_meta( $post_id, "_cf7_coinsnap_s_url", true );
@@ -184,13 +171,13 @@ class Cf7Coinsnap {
                         </div>';
 		$admin_settings .= '<div class="cf7-coinsnap_row">
                           <label>Store ID (required)</label>
-                          <div class="cf7-coinsnap-field"><input required class="long-input" type="text" value="' . $coinsnap_store_id . '" name="coinsnap_store_id">
+                          <div class="cf7-coinsnap-field"><input class="long-input" type="text" value="' . $coinsnap_store_id . '" name="coinsnap_store_id">
                           <div class="description">Please input your personal Store ID, which you will find in your Coinsnap account.</div>
                           </div>
                         </div>';
 		$admin_settings .= '<div class="cf7-coinsnap_row">
                           <label>API Key (required)</label>
-                          <div class="cf7-coinsnap-field"><input required class="long-input" type="text" value="' . $coinsnap_api_key . '" name="coinsnap_api_key">
+                          <div class="cf7-coinsnap-field"><input class="long-input" type="text" value="' . $coinsnap_api_key . '" name="coinsnap_api_key">
                           <div class="description">Please input the API Key that you will find in your Coinsnap account.</div>
                           </div>
                         </div>';
@@ -363,7 +350,6 @@ class Cf7Coinsnap {
 			array( 'id' => $order_id ), array( '%s', '%s' ), array( '%d' )
 		);
 
-
 		echo "OK";
 		exit;
 	}
@@ -425,21 +411,15 @@ class Cf7Coinsnap {
 	}
 
 	public function deleteWebhook( string $storeId, string $apiKey, string $webhookid ): bool {
-
 		try {
 			$whClient = new \Coinsnap\Client\Webhook( $this->getApiUrl(), $apiKey );
-
             $webhook = $whClient->deleteWebhook(
                 $storeId,   //$storeId
                 $webhookid, //$url
             );
             return true;
         } catch (\Throwable $e) {
-
             return false;
         }
     }
-
-
-
 }
