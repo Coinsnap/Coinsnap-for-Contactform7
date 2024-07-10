@@ -1,5 +1,10 @@
 <?php
 
+use Coinsnap\Client\Invoice;
+use Coinsnap\Client\InvoiceCheckoutOptions;
+use Coinsnap\Client\Webhook;
+use Coinsnap\Util\PreciseNumber;
+
 class Cf7Coinsnap {
 	private static $_instance = null;
 	protected $_full_path = __FILE__;
@@ -251,7 +256,7 @@ class Cf7Coinsnap {
 
 		if ( ! $this->webhookExists( $this->getStoreId(), $this->getApiKey(), $webhook_url ) ) {
 			if ( ! $this->registerWebhook( $this->getStoreId(), $this->getApiKey(), $webhook_url ) ) {
-				echo( __( 'unable to set Webhook url.', 'cf7_coinsnap' ) );
+				echo( __( 'Unable to set Webhook url. Please check your API and Store ID keys.', 'cf7_coinsnap' ) );
 				exit;
 			}
 		}
@@ -275,17 +280,17 @@ class Cf7Coinsnap {
 		$invoice_no               = $wpdb->insert_id;
 		$amount                   = round( $payment_amount, 2 );
 		$metadata                 = [];
-//		$metadata['orderNumber']  = $invoice_no;
-//		$metadata['customerName'] = $buyerName;
-//
-//		foreach ($remainingMetadata as $key => $value) {
-//			$metadata[$key]       = $value;
-//		}
+		$metadata['orderNumber']  = $invoice_no;
+		$metadata['customerName'] = $buyerName;
 
-		$checkoutOptions = new \Coinsnap\Client\InvoiceCheckoutOptions();
+		foreach ($remainingMetadata as $key => $value) {
+			$metadata[$key]       = $value;
+		}
+
+		$checkoutOptions = new InvoiceCheckoutOptions();
 		$checkoutOptions->setRedirectURL( $return_url );
-		$client  = new \Coinsnap\Client\Invoice( $this->getApiUrl(), $this->getApiKey() );
-		$camount = \Coinsnap\Util\PreciseNumber::parseFloat( $amount, 2 );
+		$client  = new Invoice( $this->getApiUrl(), $this->getApiKey() );
+		$camount = PreciseNumber::parseFloat( $amount, 2 );
 
 		$csinvoice = $client->createInvoice(
 			$this->getStoreId(),
@@ -330,7 +335,7 @@ class Cf7Coinsnap {
 		$invoice_id = $notify_ar['invoiceId'];
 
 		try {
-			$client    = new \Coinsnap\Client\Invoice( $this->getApiUrl(), $this->getApiKey() );
+			$client    = new Invoice( $this->getApiUrl(), $this->getApiKey() );
 			$csinvoice = $client->getInvoice( $this->getStoreId(), $invoice_id );
 			$status    = $csinvoice->getData()['status'];
 			$order_id  = $csinvoice->getData()['orderId'];
@@ -374,7 +379,7 @@ class Cf7Coinsnap {
 
 	public function webhookExists( string $storeId, string $apiKey, string $webhook ): bool {
 		try {
-			$whClient = new \Coinsnap\Client\Webhook( $this->getApiUrl(), $apiKey );
+			$whClient = new Webhook( $this->getApiUrl(), $apiKey );
 			$Webhooks = $whClient->getWebhooks( $storeId );
 
 
@@ -393,7 +398,7 @@ class Cf7Coinsnap {
 
 	public function registerWebhook( string $storeId, string $apiKey, string $webhook ): bool {
 		try {
-			$whClient = new \Coinsnap\Client\Webhook( $this->getApiUrl(), $apiKey );
+			$whClient = new Webhook( $this->getApiUrl(), $apiKey );
 
 			$webhook = $whClient->createWebhook(
 				$storeId,   //$storeId
@@ -412,7 +417,7 @@ class Cf7Coinsnap {
 
 	public function deleteWebhook( string $storeId, string $apiKey, string $webhookid ): bool {
 		try {
-			$whClient = new \Coinsnap\Client\Webhook( $this->getApiUrl(), $apiKey );
+			$whClient = new Webhook( $this->getApiUrl(), $apiKey );
             $webhook = $whClient->deleteWebhook(
                 $storeId,   //$storeId
                 $webhookid, //$url
