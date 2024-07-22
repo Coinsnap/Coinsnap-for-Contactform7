@@ -3,16 +3,78 @@ Contributors: coinsnap
 Tags:  Coinsnap, Contact Form 7, Bitcoin, Lightning
 Requires at least: 6.2
 Requires PHP: 7.4
-Tested up to: 6.4.3
-Stable tag: 1.1.0
+Tested up to: 6.6
+Stable tag: 1.0.0
 License: GPLv2
 License URI: http://www.gnu.org/licenses/gpl-2.0.html
 
-Bitcoin and Lightning payment processing with the Coinsnap add-on for Contact Form 7 Wordpress Plug-in.
+Coinsnap payment plug-in is intended for Worpress form builder Contact Form 7 to accept Bitcoin and Lightning payments via Coinsnap payment gateway https://app.coinsnap.io/.
+
+* WooCommerce Coinsnap Demo Store: https://contactform7.coinsnap.org/
+* Blog Article: https://coinsnap.io/en/coinsnap-for-contact-form-7/
+* WordPress: https://wordpress.org/plugins/coinsnap-for-contactform7/
+* GitHub: https://github.com/Coinsnap/Coinsnap-for-Contactform7
 
 == Description ==
 
-Coinsnap is a Lightning payment provider and offers a payment gateway for processing Bitcoin and Lightning payments. Website owner only needs a Lightning wallet with a lightning address to accept Bitcoin and Lightning payments on their website.
+[Coinsnap](https://coinsnap.io/en/) for Contact Form 7 allows you to process Bitcoin Lightning payments over the Lightning network. 
+With the Coinsnap Bitcoin-Lightning payment plugin for Contact Form 7 you only need a Lightning wallet with a Lightning address to accept Bitcoin Lightning payments on your Wordpress site.
+
+= Bitcoin and Lightning payments in Contact Form 7 with Coinsnap =
+
+With Contact Form 7, website owners can create forms with different fields such as name, email, subject, message, etc. and embed them in their pages or posts. It is highly customizable and allows users to change the look and feel of their contact forms.
+
+With the Coinsnap Bitcoin Lightning payment processing plugin you can immediately accept Bitcoin Lightning payments on your site. You don’t need your own Lightning node or any other technical requirements.
+
+Simply register on [Coinsnap](https://app.coinsnap.io/register), enter your own Lightning address and install the Coinsnap payment module in your wordpress backend. Add your store ID and your API key which you’ll find in your Coinsnap account, and your customers can pay you with Bitcoin Lightning right away!
+
+= Features: =
+
+* **All you need is a Lightning Wallet with a Lightning address. [Here you can find an overview of the matching Lightning Wallets](https://coinsnap.io/en/lightning-wallet-with-lightning-address/)**
+
+* **Accept Bitcoin and Lightning payments** in your online store **without running your own technical infrastructure.** You do not need your own server, nor do you need to run your own Lightning Node.
+
+* **Quick and easy registration at Coinsnap**: Just enter your email address and your Lightning address – and you are ready to integrate the payment module and start selling for Bitcoin Lightning. You will find the necessary IDs and Keys here, too.
+
+* **100% protected privacy**:
+    * We do not collect personal data.
+    * For the registration you only need an e-mail address, which we will also use to inform you when we have received a payment.
+    * No other personal information is required as long as you request a withdrawal to a Lightning address or Bitcoin address.
+
+* **Only 1 % fees!**:
+    * No basic fee, no transaction fee, only 1% on the invoice amount with referrer code.
+    * Without referrer code the fee is 1.25%.
+    * Get a referrer code from our partners and customers and save 0.25% fee.
+
+* **No KYC needed**:
+    * Direct, P2P payments (instantly to your Lightning wallet)
+    * No intermediaries and paperwork
+    * Transaction information is only shared between you and your customer
+
+* **Sophisticated merchant’s admin dashboard in Coinsnap:**:
+    * See all your transactions at a glance
+    * Follow-up on individual payments
+    * See issues with payments
+    * Export reports
+
+* **A Bitcoin payment via Lightning offers significant advantages**:
+    * Lightning **payments are executed immediately.**
+    * Lightning **payments are credited directly to the recipient.**
+    * Lightning **payments are inexpensive.**
+    * Lightning **payments are guaranteed.** No chargeback risk for the merchant.
+    * Lightning **payments can be used worldwide.**
+    * Lightning **payments are perfect for micropayments.**
+
+* **Multilingual interface and support**: We speak your language
+
+
+= Documentation: =
+
+* [Coinsnap API (1.0) documentation](https://docs.coinsnap.io/)
+* [Frequently Asked Questions](https://coinsnap.io/en/faq/) 
+* [Terms and Conditions](https://coinsnap.io/en/general-terms-and-conditions/)
+* [Privacy Policy](https://coinsnap.io/en/privacy/)
+
 
 == Installation ==
 
@@ -96,17 +158,25 @@ We make a real donation payment in our test Contact Form 7 site.
 
 The Bitcoin + Lightning payment page is now displayed, offering the payer the option to pay with Bitcoin or also with Lightning. Both methods are integrated in the displayed QR code.
 
-== Upgrade Notice ==
+# Upgrade Notice #
 
 Follow updates on plugin's GitHub page:
 https://github.com/Coinsnap/Coinsnap-for-Contactform7
 
-== Frequently Asked Questions ==
+# Frequently Asked Questions #
 
 Plugin's page on Coinsnap website: https://coinsnap.io/en/
 
-== Screenshot ==
+== Screenshots ==
 
-== Changelog ==
-= 1.0 :: 2024-03-07 =
-* Initial release.
+1. Contact Form 7 Plugin
+2. Plugin downloading from Github repository
+3. Manual plugin installation
+4. Plugin settings
+5. Contact Form 7 form constructor
+6. Contact Form 7 form interface
+7. QR code on the Bitcoin payment page
+  
+# Changelog #
+= 1.0.0 :: 2024-07-08 =
+* Initial release. 
