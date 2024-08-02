@@ -8,17 +8,18 @@ Stable tag: 1.0.0
 License: GPLv2
 License URI: http://www.gnu.org/licenses/gpl-2.0.html
 
-Coinsnap payment plug-in is intended for Worpress form builder Contact Form 7 to accept Bitcoin and Lightning payments via Coinsnap payment gateway https://app.coinsnap.io/.
+Coinsnap payment plug-in is intended for ContactForm7 to accept Bitcoin and Lightning payments via Coinsnap payment gateway.
+
+== Description ==
+
+[Coinsnap](https://coinsnap.io/en/) for Contact Form 7 allows you to process Bitcoin Lightning payments over the Lightning network https://app.coinsnap.io/. 
+With the Coinsnap Bitcoin-Lightning payment plugin for Contact Form 7 you only need a Lightning wallet with a Lightning address to accept Bitcoin Lightning payments on your Wordpress site.
 
 * WooCommerce Coinsnap Demo Store: https://contactform7.coinsnap.org/
 * Blog Article: https://coinsnap.io/en/coinsnap-for-contact-form-7/
 * WordPress: https://wordpress.org/plugins/coinsnap-for-contactform7/
 * GitHub: https://github.com/Coinsnap/Coinsnap-for-Contactform7
 
-== Description ==
-
-[Coinsnap](https://coinsnap.io/en/) for Contact Form 7 allows you to process Bitcoin Lightning payments over the Lightning network. 
-With the Coinsnap Bitcoin-Lightning payment plugin for Contact Form 7 you only need a Lightning wallet with a Lightning address to accept Bitcoin Lightning payments on your Wordpress site.
 
 = Bitcoin and Lightning payments in Contact Form 7 with Coinsnap =
 

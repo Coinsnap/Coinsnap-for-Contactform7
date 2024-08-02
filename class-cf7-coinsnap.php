@@ -43,16 +43,15 @@ class Cf7Coinsnap {
 
 	function cf7_coinsnap_admin_list_trans() {
 		if ( ! current_user_can( "manage_options" ) ) {
-			wp_die( __( "You do not have sufficient permissions to access this page." ) );
+                    wp_die( esc_html( "You do not have sufficient permissions to access this page." ) );
 		}
 		global $wpdb;
-		global $wpdb;
-		$pagenum      = isset( $_GET['pagenum'] ) ? absint( $_GET['pagenum'] ) : 1;
+		$pagenum      = ( filter_input(INPUT_GET,'pagenum') !== null ) ? absint( filter_input(INPUT_GET,'pagenum') ) : 1;
 		$limit        = 20;
 		$offset       = ( $pagenum - 1 ) * $limit;
 		$table_name   = $this->get_tablename();
-		$transactions = $wpdb->get_results( "SELECT * FROM $table_name  ORDER BY $table_name.id DESC LIMIT $offset, $limit", ARRAY_A );
-		$total        = $wpdb->get_var( "SELECT COUNT($table_name.id) FROM $table_name  " );
+		$transactions = $wpdb->get_results( $wpdb->prepare("SELECT * FROM $table_name  ORDER BY $table_name.id DESC LIMIT $offset, $limit" ), ARRAY_A);
+		$total        = $wpdb->get_var( $wpdb->prepare("SELECT COUNT($table_name.id) FROM $table_name  ") );
 		$num_of_pages = ceil( $total / $limit );
 		$cntx         = 0;
 		echo '<div class="wrap">
@@ -90,13 +89,13 @@ class Cf7Coinsnap {
 				$datetime = new DateTime("@{$transaction['submit_time']}");
 				$formattedDate = $datetime->format('F j, Y g:i:s A');
 				echo '<tr class="alternate author-self status-publish iedit" valign="top">
-					<td class="">' . get_the_title( $transaction['form_id'] ) . '</td>';
-				echo '<td class="">' . $transaction['id'] . '</td>';
-				echo '<td class="">' . $formattedDate . '</td>';
-				echo '<td class="">' . $transaction['name'] . '</td>';
-				echo '<td class="">' . $transaction['email'] . '</td>';
-				echo '<td class="">' . $transaction['amount'] . '</td>';
-				echo '<td class="">' . $transaction['status'] . '</td>';
+					<td class="">' . esc_html(get_the_title( $transaction['form_id'] )) . '</td>';
+				echo '<td class="">' . esc_html($transaction['id']) . '</td>';
+				echo '<td class="">' . esc_html($formattedDate) . '</td>';
+				echo '<td class="">' . esc_html($transaction['name']) . '</td>';
+				echo '<td class="">' . esc_html($transaction['email']) . '</td>';
+				echo '<td class="">' . esc_html($transaction['amount']) . '</td>';
+				echo '<td class="">' . esc_html($transaction['status']) . '</td>';
 				echo '</tr>';
 			}
 		}
@@ -110,25 +109,25 @@ class Cf7Coinsnap {
 			'current'   => $pagenum
 		) );
 		if ( $page_links ) {
-			echo '<center><div class="tablenav"><div class="tablenav-pages"  style="float:none; margin: 1em 0">' . $page_links . '</div></div></center>';
+			echo '<center><div class="tablenav"><div class="tablenav-pages"  style="float:none; margin: 1em 0">' . esc_html($page_links) . '</div></div></center>';
 		}
 		echo '<br><hr></div>';
 	}
 
 	function cf7_save_settings( $cf7 ) {
 
-		$post_id = sanitize_text_field( $_POST['post'] );
-		if ( ! empty( $_POST['coinsnap_enable'] ) ) {
-			$coinsnap_enable = sanitize_text_field( $_POST['coinsnap_enable'] );
+		$post_id = sanitize_text_field( filter_input(INPUT_POST,'post') );
+		if ( ! empty( filter_input(INPUT_POST,'coinsnap_enable') ) ) {
+			$coinsnap_enable = sanitize_text_field( filter_input(INPUT_POST,'coinsnap_enable') );
 			update_post_meta( $post_id, "_cf7_coinsnap_enable", $coinsnap_enable );
 		} else {
 			update_post_meta( $post_id, "_cf7_coinsnap_enable", 0 );
 		}
 
-		update_post_meta( $post_id, "_cf7_coinsnap_currency", sanitize_text_field( $_POST['coinsnap_currency'] ) );
-		update_post_meta( $post_id, "_cf7_coinsnap_store_id", sanitize_text_field( $_POST['coinsnap_store_id'] ) );
-		update_post_meta( $post_id, "_cf7_coinsnap_api_key", sanitize_text_field( $_POST['coinsnap_api_key'] ) );
-		update_post_meta( $post_id, "_cf7_coinsnap_s_url", sanitize_text_field( $_POST['coinsnap_s_url'] ) );
+		update_post_meta( $post_id, "_cf7_coinsnap_currency", sanitize_text_field( filter_input(INPUT_POST,'coinsnap_currency') ) );
+		update_post_meta( $post_id, "_cf7_coinsnap_store_id", sanitize_text_field( filter_input(INPUT_POST,'coinsnap_store_id') ) );
+		update_post_meta( $post_id, "_cf7_coinsnap_api_key", sanitize_text_field( filter_input(INPUT_POST,'coinsnap_api_key') ) );
+		update_post_meta( $post_id, "_cf7_coinsnap_s_url", sanitize_text_field( filter_input(INPUT_POST,'coinsnap_s_url') ) );
 	}
 
 
@@ -146,7 +145,7 @@ class Cf7Coinsnap {
 
 	function cf7_coinsnap_admin_after_additional_settings( $cf7 ) {
 
-		$post_id = sanitize_text_field( $_GET['post'] );
+		$post_id = sanitize_text_field( filter_input(INPUT_GET,'post') );
 
 
 		$enable       = get_post_meta( $post_id, "_cf7_coinsnap_enable", true );
@@ -216,7 +215,7 @@ class Cf7Coinsnap {
                         </div>';
 		$admin_settings .= '<input type="hidden" name="post" value="' . $post_id . '"></div>';
 
-		echo $admin_settings;
+		echo esc_html($admin_settings);
 	}
 
 	public function redirect_payment( $cf7 ) {
@@ -256,7 +255,7 @@ class Cf7Coinsnap {
 
 		if ( ! $this->webhookExists( $this->getStoreId(), $this->getApiKey(), $webhook_url ) ) {
 			if ( ! $this->registerWebhook( $this->getStoreId(), $this->getApiKey(), $webhook_url ) ) {
-				echo( __( 'Unable to set Webhook url. Please check your API and Store ID keys.', 'cf7_coinsnap' ) );
+				echo( esc_html( 'Unable to set Webhook url. Please check your API and Store ID keys.') );
 				exit;
 			}
 		}
@@ -264,14 +263,14 @@ class Cf7Coinsnap {
 
 		$wpdb->insert( $table_name, $trans = array(
 			'form_id'      => $post_id,
-			'field_values' => json_encode( $submission_data, true ),
+			'field_values' => wp_json_encode( $submission_data, true ),
 			'submit_time'  => time(),
 			'name'         => $buyerName,
 			'email'        => $buyerEmail,
 			'amount'       => $payment_amount,
 		), $schema = array( '%d', '%s', '%s', '%s', '%s', '%d' ) );
 		if ( $wpdb->last_error != '' ) {
-			echo $wpdb->last_error;
+			echo esc_html( $wpdb->last_error );
 			exit;
 		}
 
@@ -322,12 +321,12 @@ class Cf7Coinsnap {
 	public function process_webhook() {
 		global $wpdb;
 
-		if ( ! isset( $_GET['cf7-listener'] ) || $_GET['cf7-listener'] !== 'coinsnap' ) {
+		if ( filter_input(INPUT_GET,'cf7-listener') !== null  || filter_input(INPUT_GET,'cf7-listener') !== 'coinsnap' ) {
 			return;
 		}
 
 
-		$this->_postid = $_GET['form_id'];
+		$this->_postid = filter_input(INPUT_GET,'form_id');
 
 		$notify_json = file_get_contents( 'php://input' );
 
@@ -349,7 +348,7 @@ class Cf7Coinsnap {
 		unset( $payment_res['lightningInvoice'] );
 		$table_name = $this->get_tablename();
 		$wpdb->update( $table_name, array(
-			'payment_details' => json_encode( $payment_res, true ),
+			'payment_details' => wp_json_encode( $payment_res, true ),
 			'status'          => $status
 		),
 			array( 'id' => $order_id ), array( '%s', '%s' ), array( '%d' )

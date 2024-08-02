@@ -19,6 +19,7 @@
 
 defined( 'ABSPATH' ) || exit;
 define( 'COINSNAP_REFERRAL_CODE', 'D19827' );
+define( 'COINSNAP_VERSION', '1.0.0' );
 add_action( 'init', array( 'cf7_coinsnap', 'load' ), 5 );
 register_activation_hook( __FILE__, "cf7_coinsnap_activate" );
 register_deactivation_hook( __FILE__, "cf7_coinsnap_deactivate" );
@@ -26,7 +27,7 @@ define( 'WPCF7_LOAD_JS', false );
 
 class cf7_coinsnap {
 	public static function load() {
-		require_once( plugin_dir_path( __FILE__ ) . '/library/autoload.php' );
+		require_once( plugin_dir_path( __FILE__ ) . 'library/loader.php' );
 		require_once( 'class-cf7-coinsnap.php' );
 		Cf7Coinsnap::get_instance();
 	}
@@ -36,7 +37,7 @@ function cf7_coinsnap_activate() {
 
 	global $wpdb;
 	$table_name = $wpdb->prefix . "cf7_coinsnap_extension";
-	if ( $wpdb->get_var( "SHOW TABLES LIKE '$table_name'" ) != $table_name ) {
+	if ( $wpdb->get_var($wpdb->prepare( "SHOW TABLES LIKE %s", $table_name )) != $table_name ) {
 		$sql = "CREATE TABLE $table_name (
     				`id` int(11) UNSIGNED NOT NULL AUTO_INCREMENT,
 			      	`form_id` INT(11) NOT NULL,			      	
@@ -58,7 +59,7 @@ function cf7_coinsnap_activate() {
 function cf7_coinsnap_deactivate() {
 	global $wpdb;
 	$table_name = $wpdb->prefix . "cf7_coinsnap_extension";
-	$wpdb->query( 'DROP TABLE IF EXISTS ' . $table_name );
+	$wpdb->prepare( "DROP TABLE IF EXISTS %s", $table_name  );
 	delete_option( 'cf7_coinsnap_check_show_warning' );
 }
 
@@ -78,7 +79,7 @@ add_action('admin_init', 'cf7_coinsnap_check_contact_form_7_dependency');
 function cf7_coinsnap_dependency_notice() {
 	?>
   <div class="notice notice-error">
-    <p><?php _e('Coinsnap for Contact Form 7 plugin requires Contact Form 7 to be installed and activated.', 'cf7_coinsnap_textdomain'); ?></p>
+    <p><?php esc_html('Coinsnap for Contact Form 7 plugin requires Contact Form 7 to be installed and activated.'); ?></p>
   </div>
 	<?php
 }
@@ -86,7 +87,7 @@ function cf7_coinsnap_dependency_notice() {
 // Add custom styling.
 function cf7_coinsnap_enqueue_admin_styles( $hook ) {
 	// Register the CSS file
-	wp_register_style( 'cf7_coinsnap-admin-styles', plugins_url( 'css/cf7_coinsnap-styles.css', __FILE__ ) );
+	wp_register_style( 'cf7_coinsnap-admin-styles', plugins_url( 'css/cf7_coinsnap-styles.css', __FILE__  ), array(), COINSNAP_VERSION );
 
 	// Enqueue the CSS file
 	wp_enqueue_style( 'cf7_coinsnap-admin-styles' );
