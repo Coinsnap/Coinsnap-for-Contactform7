@@ -50,8 +50,8 @@ class Cf7Coinsnap {
 		$limit        = 20;
 		$offset       = ( $pagenum - 1 ) * $limit;
 		$table_name   = $this->get_tablename();
-		$transactions = $wpdb->get_results( $wpdb->prepare("SELECT * FROM $table_name  ORDER BY $table_name.id DESC LIMIT $offset, $limit" ), ARRAY_A);
-		$total        = $wpdb->get_var( $wpdb->prepare("SELECT COUNT($table_name.id) FROM $table_name  ") );
+		$transactions = $wpdb->get_results( $wpdb->prepare("SELECT * FROM %s ORDER BY id DESC LIMIT %s, %s", $table_name, $offset, $limit ), ARRAY_A);
+		$total        = $wpdb->get_var( $wpdb->prepare("SELECT COUNT(id) FROM %s  ",$table_name) );
 		$num_of_pages = ceil( $total / $limit );
 		$cntx         = 0;
 		echo '<div class="wrap">
