@@ -5,7 +5,7 @@ use Coinsnap\Client\InvoiceCheckoutOptions;
 use Coinsnap\Client\Webhook;
 use Coinsnap\Util\PreciseNumber;
 
-class Cf7Coinsnap {
+class CoinsnapCf7Class {
 	private static $_instance = null;
 	protected $_full_path = __FILE__;
 	private $_postid;
@@ -14,39 +14,36 @@ class Cf7Coinsnap {
 
 	public function __construct() {
 
-		add_filter( 'wpcf7_editor_panels', array( $this, 'cf7_coinsnap_editor_panels' ) );
-		add_action( 'wpcf7_admin_after_additional_settings', array(
-			$this,
-			'cf7_coinsnap_admin_after_additional_settings'
-		) );
+		add_filter( 'wpcf7_editor_panels', array( $this, 'coinsnapcf7_editor_panels' ) );
+		add_action( 'wpcf7_admin_after_additional_settings', array($this, 'coinsnapcf7_admin_after_additional_settings') );
 		add_action( 'wpcf7_save_contact_form', array( $this, 'cf7_save_settings' ) );
 		add_action( 'wpcf7_mail_sent', array( $this, 'redirect_payment' ) );
 		add_action( 'init', array( $this, 'process_webhook' ) );
-		add_action( 'admin_menu', array( $this, 'cf7_coinsnap_admin_menu' ), 20 );
+		add_action( 'admin_menu', array( $this, 'coinsnapcf7_admin_menu' ), 20 );
 	}
 
 	public static function get_instance() {
 		if ( self::$_instance == null ) {
-			self::$_instance = new Cf7Coinsnap();
+			self::$_instance = new CoinsnapCf7();
 		}
 
 		return self::$_instance;
 	}
 
 
-	function cf7_coinsnap_admin_menu() {
-		add_submenu_page( 'wpcf7', __( 'Coinsnap Payments', 'contact-form-7' ), __( 'Coinsnap Payments', 'contact-form-7' ), 'wpcf7_edit_contact_forms', 'cf7_coinsnap_admin_list_trans', array(
+	function coinsnapcf7_admin_menu() {
+		add_submenu_page( 'wpcf7', __( 'Coinsnap Payments', 'coinsnap-for-contactform7' ), __( 'Coinsnap Payments', 'coinsnap-for-contactform7' ), 'wpcf7_edit_contact_forms', 'coinsnapcf7_admin_list_trans', array(
 			$this,
-			'cf7_coinsnap_admin_list_trans'
+			'coinsnapcf7_admin_list_trans'
 		) );
 	}
 
-	function cf7_coinsnap_admin_list_trans() {
+	function coinsnapcf7_admin_list_trans() {
 		if ( ! current_user_can( "manage_options" ) ) {
                     wp_die( esc_html( "You do not have sufficient permissions to access this page." ) );
 		}
 		global $wpdb;
-		$pagenum      = ( filter_input(INPUT_GET,'pagenum') !== null ) ? absint( filter_input(INPUT_GET,'pagenum') ) : 1;
+		$pagenum      = ( filter_input(INPUT_GET,'pagenum',FILTER_VALIDATE_INT) !== null ) ? absint( filter_input(INPUT_GET,'pagenum',FILTER_VALIDATE_INT) ) : 1;
 		$limit        = 20;
 		$offset       = ( $pagenum - 1 ) * $limit;
 		$table_name   = $this->get_tablename();
@@ -103,8 +100,8 @@ class Cf7Coinsnap {
 		$page_links = paginate_links( array(
 			'base'      => add_query_arg( 'pagenum', '%#%' ),
 			'format'    => '',
-			'prev_text' => __( '&laquo;', 'aag' ),
-			'next_text' => __( '&raquo;', 'aag' ),
+			'prev_text' => __( '&laquo;', 'coinsnap-for-contactform7' ),
+			'next_text' => __( '&raquo;', 'coinsnap-for-contactform7' ),
 			'total'     => $num_of_pages,
 			'current'   => $pagenum
 		) );
@@ -117,25 +114,25 @@ class Cf7Coinsnap {
 	function cf7_save_settings( $cf7 ) {
 
 		$post_id = sanitize_text_field( filter_input(INPUT_POST,'post') );
-		if ( ! empty( filter_input(INPUT_POST,'coinsnap_enable') ) ) {
-			$coinsnap_enable = sanitize_text_field( filter_input(INPUT_POST,'coinsnap_enable') );
-			update_post_meta( $post_id, "_cf7_coinsnap_enable", $coinsnap_enable );
+		if ( ! empty( filter_input(INPUT_POST,'coinsnapcf7_enable') ) ) {
+			$coinsnapcf7_enable = sanitize_text_field( filter_input(INPUT_POST,'coinsnapcf7_enable') );
+			update_post_meta( $post_id, "_coinsnapcf7_enable", $coinsnapcf7_enable );
 		} else {
-			update_post_meta( $post_id, "_cf7_coinsnap_enable", 0 );
+			update_post_meta( $post_id, "_coinsnapcf7_enable", 0 );
 		}
 
-		update_post_meta( $post_id, "_cf7_coinsnap_currency", sanitize_text_field( filter_input(INPUT_POST,'coinsnap_currency') ) );
-		update_post_meta( $post_id, "_cf7_coinsnap_store_id", sanitize_text_field( filter_input(INPUT_POST,'coinsnap_store_id') ) );
-		update_post_meta( $post_id, "_cf7_coinsnap_api_key", sanitize_text_field( filter_input(INPUT_POST,'coinsnap_api_key') ) );
-		update_post_meta( $post_id, "_cf7_coinsnap_s_url", sanitize_text_field( filter_input(INPUT_POST,'coinsnap_s_url') ) );
+		update_post_meta( $post_id, "_coinsnapcf7_currency", sanitize_text_field( filter_input(INPUT_POST,'coinsnapcf7_currency') ) );
+		update_post_meta( $post_id, "_coinsnapcf7_store_id", sanitize_text_field( filter_input(INPUT_POST,'coinsnapcf7_store_id') ) );
+		update_post_meta( $post_id, "_coinsnapcf7_api_key", sanitize_text_field( filter_input(INPUT_POST,'coinsnapcf7_api_key') ) );
+		update_post_meta( $post_id, "_coinsnapcf7_s_url", sanitize_text_field( filter_input(INPUT_POST,'coinsnapcf7_s_url') ) );
 	}
 
 
-	function cf7_coinsnap_editor_panels( $panels ) {
+	function coinsnapcf7_editor_panels( $panels ) {
 		$new_page = array(
 			'coinsnap' => array(
-				'title'    => __( 'Coinsnap', 'coinsnap_payment_for_cf7' ),
-				'callback' => array( $this, 'cf7_coinsnap_admin_after_additional_settings' )
+				'title'    => __( 'Coinsnap', 'coinsnap-for-contactform7' ),
+				'callback' => array( $this, 'coinsnapcf7_admin_after_additional_settings' )
 			)
 		);
 		$panels   = array_merge( $panels, $new_page );
@@ -143,65 +140,65 @@ class Cf7Coinsnap {
 		return $panels;
 	}
 
-	function cf7_coinsnap_admin_after_additional_settings( $cf7 ) {
+	function coinsnapcf7_admin_after_additional_settings( $cf7 ) {
 
-		$post_id = sanitize_text_field( filter_input(INPUT_GET,'post') );
+		$post_id = sanitize_text_field( filter_input(INPUT_GET,'post',FILTER_VALIDATE_INT) );
 
 
-		$enable       = get_post_meta( $post_id, "_cf7_coinsnap_enable", true );
-		$coinsnap_store_id = get_post_meta( $post_id, "_cf7_coinsnap_store_id", true );
-		$coinsnap_api_key  = get_post_meta( $post_id, "_cf7_coinsnap_api_key", true );
-		$coinsnap_s_url    = get_post_meta( $post_id, "_cf7_coinsnap_s_url", true );
+		$enable       = get_post_meta( $post_id, "_coinsnapcf7_enable", true );
+		$coinsnapcf7_store_id = get_post_meta( $post_id, "_coinsnapcf7_store_id", true );
+		$coinsnapcf7_api_key  = get_post_meta( $post_id, "_coinsnapcf7_api_key", true );
+		$coinsnapcf7_s_url    = get_post_meta( $post_id, "_coinsnapcf7_s_url", true );
 
-		$coinsnap_currency = get_post_meta( $post_id, "_cf7_coinsnap_currency", true );
-		if ( empty( $coinsnap_currency ) ) {
-			$coinsnap_currency = 'USD';
+		$coinsnapcf7_currency = get_post_meta( $post_id, "_coinsnapcf7_currency", true );
+		if ( empty( $coinsnapcf7_currency ) ) {
+			$coinsnapcf7_currency = 'USD';
 		}
 
 		$checked = ( $enable == "1" ) ? "CHECKED" : '';
 
-		$admin_settings = '<div class="cf7-coinsnap">';
-		$admin_settings .= '<div class="cf7-coinsnap_row">
-                          <div class="cf7-coinsnap-field inline-form">
-                           <input type="checkbox" value="1" name="coinsnap_enable" ' . $checked . '><label>Enable Coinsnap on this form</label>
+		$admin_settings = '<div class="coinsnapcf7">';
+		$admin_settings .= '<div class="coinsnapcf7_row">
+                          <div class="coinsnapcf7-field inline-form">
+                           <input type="checkbox" value="1" name="coinsnapcf7_enable" ' . $checked . '><label>Enable Coinsnap on this form</label>
                           </div>
                         </div>';
 
-		$admin_settings .= '<div class="cf7-coinsnap_row"><hr></div>';
-		$admin_settings .= '<div class="cf7-coinsnap_row">
+		$admin_settings .= '<div class="coinsnapcf7_row"><hr></div>';
+		$admin_settings .= '<div class="coinsnapcf7_row">
                           <label>Currency Code (required)</label>
-                          <div class="cf7-coinsnap-field"><input type="text" value="' . $coinsnap_currency . '" placeholder="EUR" name="coinsnap_currency">
+                          <div class="coinsnapcf7-field"><input type="text" value="' . $coinsnapcf7_currency . '" placeholder="EUR" name="coinsnapcf7_currency">
                           </div>
                         </div>';
-		$admin_settings .= '<div class="cf7-coinsnap_row">
+		$admin_settings .= '<div class="coinsnapcf7_row">
                           <label>Store ID (required)</label>
-                          <div class="cf7-coinsnap-field"><input class="long-input" type="text" value="' . $coinsnap_store_id . '" name="coinsnap_store_id">
+                          <div class="coinsnapcf7-field"><input class="long-input" type="text" value="' . $coinsnapcf7_store_id . '" name="coinsnapcf7_store_id">
                           <div class="description">Please input your personal Store ID, which you will find in your Coinsnap account.</div>
                           </div>
                         </div>';
-		$admin_settings .= '<div class="cf7-coinsnap_row">
+		$admin_settings .= '<div class="coinsnapcf7_row">
                           <label>API Key (required)</label>
-                          <div class="cf7-coinsnap-field"><input class="long-input" type="text" value="' . $coinsnap_api_key . '" name="coinsnap_api_key">
+                          <div class="coinsnapcf7-field"><input class="long-input" type="text" value="' . $coinsnapcf7_api_key . '" name="coinsnapcf7_api_key">
                           <div class="description">Please input the API Key that you will find in your Coinsnap account.</div>
                           </div>
                         </div>';
-		$admin_settings .= '<div class="cf7-coinsnap_row">
+		$admin_settings .= '<div class="coinsnapcf7_row">
                           <label>Success URL</label>
-                          <div class="cf7-coinsnap-field"><input class="long-input" type="text" value="' . $coinsnap_s_url . '" name="coinsnap_s_url">
+                          <div class="coinsnapcf7-field"><input class="long-input" type="text" value="' . $coinsnapcf7_s_url . '" name="coinsnapcf7_s_url">
                           <div class="description">Please enter here the URL of the page on your website that the buyer will be re-directed to after he finalizes the transaction. (Note: You must create this page, i.e. a “thank you”-page, yourself on your website!)</div> 
                           </div>
                         </div>';
-		$admin_settings .= '<div class="cf7-coinsnap_row"><hr></div>';
-		$admin_settings .= '<div class="cf7-coinsnap_row"><h3>How do I integrate Bitcoin-Lighting Payment in my form?</h3></div><ol>';
-		$admin_settings .= '<li class="cf7-coinsnap_row">To specify the cost of your offering, use the number element and name it <strong>cs_amount</strong>: [number* cs_amount min:0.01]</li>';
-		$admin_settings .= '<li class="cf7-coinsnap_row">You define the cost of your offering by manipulating the value of the 0.01 in the tag, i.e. writing [number* cs_amount min:2.50]</li>';
-		$admin_settings .= '<li class="cf7-coinsnap_row">If you want to see the name and/or the email of the buyer in the transaction overview in your Coinsnap account, name the respective fields accordingly <strong>cs_name</strong> and <strong>cs_email</strong>: [text cs_name] [email cs_email]</li>';
-		$admin_settings .= '</ol><div class="cf7-coinsnap_row"><p>NOTE: <strong>cs_amount</strong> is a mandatory field you must use in your form to make the plugin work. <strong>cs_name</strong> and <strong>cs_email</strong> you only need to use if you want to see this information in your Coinsnap transaction overview.</p></div>';
-		$admin_settings .= '<div class="cf7-coinsnap_row"><hr></div>';
-		$admin_settings .= '<div class="cf7-coinsnap_row"><h3>Or copy this code into your form, and then add all other fields needed to create your transactional form:</h3></div>';
+		$admin_settings .= '<div class="coinsnapcf7_row"><hr></div>';
+		$admin_settings .= '<div class="coinsnapcf7_row"><h3>How do I integrate Bitcoin-Lighting Payment in my form?</h3></div><ol>';
+		$admin_settings .= '<li class="coinsnapcf7_row">To specify the cost of your offering, use the number element and name it <strong>cs_amount</strong>: [number* cs_amount min:0.01]</li>';
+		$admin_settings .= '<li class="coinsnapcf7_row">You define the cost of your offering by manipulating the value of the 0.01 in the tag, i.e. writing [number* cs_amount min:2.50]</li>';
+		$admin_settings .= '<li class="coinsnapcf7_row">If you want to see the name and/or the email of the buyer in the transaction overview in your Coinsnap account, name the respective fields accordingly <strong>cs_name</strong> and <strong>cs_email</strong>: [text cs_name] [email cs_email]</li>';
+		$admin_settings .= '</ol><div class="coinsnapcf7_row"><p>NOTE: <strong>cs_amount</strong> is a mandatory field you must use in your form to make the plugin work. <strong>cs_name</strong> and <strong>cs_email</strong> you only need to use if you want to see this information in your Coinsnap transaction overview.</p></div>';
+		$admin_settings .= '<div class="coinsnapcf7_row"><hr></div>';
+		$admin_settings .= '<div class="coinsnapcf7_row"><h3>Or copy this code into your form, and then add all other fields needed to create your transactional form:</h3></div>';
 
-		$admin_settings .= '<div class="cf7-coinsnap_row">
-                            <div class="cf7-coinsnap-field">
+		$admin_settings .= '<div class="coinsnapcf7_row">
+                            <div class="coinsnapcf7-field">
                             <textarea readonly rows="6">
 <label>Enter amount</label>
 [number* cs_amount min:0.01]
@@ -218,14 +215,14 @@ class Cf7Coinsnap {
 		echo esc_html($admin_settings);
 	}
 
-	public function redirect_payment( $cf7 ) {
-		global $wpdb;
-		global $postid;
+    public function redirect_payment( $cf7 ) {
+        global $wpdb;
+        global $postid;
 
-		$post_id       = $cf7->id();
-		$this->_postid = $post_id;
+        $post_id = $cf7->id();
+        $this->_postid = $post_id;
 
-		$enable = get_post_meta( $post_id, "_cf7_coinsnap_enable", true );
+        $enable = get_post_meta( $post_id, "_coinsnapcf7_enable", true );
 		if ( ! $enable ) {
 			return false;
 		}
@@ -243,7 +240,7 @@ class Cf7Coinsnap {
 		}
 		$submission_data = $submission->get_posted_data();
 		$payment_amount  = $submission_data[ $amount_field ] ?: '0';
-		$currency        = get_post_meta( $post_id, "_cf7_coinsnap_currency", true );
+		$currency        = get_post_meta( $post_id, "_coinsnapcf7_currency", true );
 		$buyerEmail      = $submission_data[ $email_field ] ?? '';
 		$buyerName       = $submission_data[ $name_field ] ?? '';
 		$webhook_url     = $this->get_webhook_url();
@@ -274,7 +271,7 @@ class Cf7Coinsnap {
 			exit;
 		}
 
-		$return_url = get_post_meta( $post_id, "_cf7_coinsnap_s_url", true );
+		$return_url = get_post_meta( $post_id, "_coinsnapcf7_s_url", true );
 
 		$invoice_no               = $wpdb->insert_id;
 		$amount                   = round( $payment_amount, 2 );
@@ -286,12 +283,12 @@ class Cf7Coinsnap {
 			$metadata[$key]       = $value;
 		}
 
-		$checkoutOptions = new InvoiceCheckoutOptions();
-		$checkoutOptions->setRedirectURL( $return_url );
-		$client  = new Invoice( $this->getApiUrl(), $this->getApiKey() );
-		$camount = PreciseNumber::parseFloat( $amount, 2 );
+	$checkoutOptions = new InvoiceCheckoutOptions();
+	$checkoutOptions->setRedirectURL( $return_url );
+	$client  = new Invoice( $this->getApiUrl(), $this->getApiKey() );
+	$camount = PreciseNumber::parseFloat( $amount, 2 );
 
-		$csinvoice = $client->createInvoice(
+	$csinvoice = $client->createInvoice(
 			$this->getStoreId(),
 			strtoupper( $currency ),
 			$camount,
@@ -299,77 +296,75 @@ class Cf7Coinsnap {
 			$buyerEmail,
 			$buyerName,
 			$return_url,
-			'',
+			COINSNAP_REFERRAL_CODE,
 			$metadata,
 			$checkoutOptions
-		);
+	);
 
 
         $payurl = $csinvoice->getData()['checkoutLink'] ;
-		wp_redirect( $payurl );
-		exit();
+        wp_redirect( $payurl );
+        exit();
+    }
 
-	}
-
-    public function get_tablename()
-    {
+    public function get_tablename(){
         global $wpdb;
-        return $wpdb->prefix . "cf7_coinsnap_extension";
+        return $wpdb->prefix . "coinsnapcf7_extension";
     }
 
 
-	public function process_webhook() {
-		global $wpdb;
+    public function process_webhook() {
+        global $wpdb;
 
-		if ( filter_input(INPUT_GET,'cf7-listener') !== null  || filter_input(INPUT_GET,'cf7-listener') !== 'coinsnap' ) {
-			return;
-		}
+	if ( filter_input(INPUT_GET,'cf7-listener',FILTER_SANITIZE_STRING) === null  || filter_input(INPUT_GET,'cf7-listener',FILTER_SANITIZE_STRING) !== 'coinsnap' ) {
+            return;
+	}
 
+        $this->_postid = filter_input(INPUT_GET,'form_id',FILTER_VALIDATE_INT);
+        $notify_json = file_get_contents( 'php://input' );
+        $notify_ar  = json_decode( $notify_json, true );
+        
+        if(is_array($notify_ar) && isset($notify_ar['invoiceId'])){
+        
+            $invoice_id = $notify_ar['invoiceId'];
 
-		$this->_postid = filter_input(INPUT_GET,'form_id');
-
-		$notify_json = file_get_contents( 'php://input' );
-
-		$notify_ar  = json_decode( $notify_json, true );
-		$invoice_id = $notify_ar['invoiceId'];
-
-		try {
-			$client    = new Invoice( $this->getApiUrl(), $this->getApiKey() );
-			$csinvoice = $client->getInvoice( $this->getStoreId(), $invoice_id );
-			$status    = $csinvoice->getData()['status'];
-			$order_id  = $csinvoice->getData()['orderId'];
-
-		} catch ( \Throwable $e ) {
-			echo "Error";
-			exit;
-		}
-		$payment_res = $csinvoice->getData();
-		unset( $payment_res['qrCodes'] );
-		unset( $payment_res['lightningInvoice'] );
-		$table_name = $this->get_tablename();
-		$wpdb->update( $table_name, array(
-			'payment_details' => wp_json_encode( $payment_res, true ),
-			'status'          => $status
-		),
-			array( 'id' => $order_id ), array( '%s', '%s' ), array( '%d' )
-		);
-
-		echo "OK";
+            try {
+		$client    = new Invoice( $this->getApiUrl(), $this->getApiKey() );
+		$csinvoice = $client->getInvoice( $this->getStoreId(), $invoice_id );
+		$status    = $csinvoice->getData()['status'];
+		$order_id  = $csinvoice->getData()['orderId'];
+            }
+            catch ( \Throwable $e ) {
+		echo "Error";
 		exit;
-	}
+            }
+            
+            $payment_res = $csinvoice->getData();
+            unset( $payment_res['qrCodes'] );
+            unset( $payment_res['lightningInvoice'] );
+            $table_name = $this->get_tablename();
+            $wpdb->update( $table_name, array(
+		'payment_details' => wp_json_encode( $payment_res, true ),
+		'status' => $status
+		),
+		array( 'id' => $order_id ), array( '%s', '%s' ), array( '%d' )
+            );
+            echo "OK";
+        }
+        exit;
+    }
 
 
-	public function get_webhook_url() {
-		return get_site_url() . '/?cf7-listener=coinsnap&form_id=' . $this->_postid;
-	}
+    public function get_webhook_url() {
+        return get_site_url() . '/?cf7-listener=coinsnap&form_id=' . $this->_postid;
+    }
 
-	public function getStoreId() {
+    public function getStoreId() {
+        return get_post_meta( $this->_postid, "_coinsnapcf7_store_id", true );
+    }
 
-		return get_post_meta( $this->_postid, "_cf7_coinsnap_store_id", true );
-	}
-
-	public function getApiKey() {
-		return get_post_meta( $this->_postid, "_cf7_coinsnap_api_key", true );
+        public function getApiKey() {
+		return get_post_meta( $this->_postid, "_coinsnapcf7_api_key", true );
 	}
 
 	public function getApiUrl() {
@@ -395,34 +390,26 @@ class Cf7Coinsnap {
 		return false;
 	}
 
-	public function registerWebhook( string $storeId, string $apiKey, string $webhook ): bool {
-		try {
-			$whClient = new Webhook( $this->getApiUrl(), $apiKey );
-
-			$webhook = $whClient->createWebhook(
-				$storeId,   //$storeId
-				$webhook, //$url
-				self::WEBHOOK_EVENTS,
-				null    //$secret
-			);
-
-			return true;
-		} catch ( \Throwable $e ) {
-			return false;
-		}
-
-		return false;
+    public function registerWebhook( string $storeId, string $apiKey, string $webhook ): bool {
+        try {
+            $whClient = new Webhook( $this->getApiUrl(), $apiKey );
+            $webhook = $whClient->createWebhook($storeId,$webhook,self::WEBHOOK_EVENTS,null);
+            return true;
+	}
+        catch ( \Throwable $e ) {
+            return false;
 	}
 
-	public function deleteWebhook( string $storeId, string $apiKey, string $webhookid ): bool {
-		try {
-			$whClient = new Webhook( $this->getApiUrl(), $apiKey );
-            $webhook = $whClient->deleteWebhook(
-                $storeId,   //$storeId
-                $webhookid, //$url
-            );
+        return false;
+    }
+
+    public function deleteWebhook( string $storeId, string $apiKey, string $webhookid ): bool {
+        try {
+            $whClient = new Webhook( $this->getApiUrl(), $apiKey );
+            $webhook = $whClient->deleteWebhook($storeId,$webhookid);
             return true;
-        } catch (\Throwable $e) {
+        }
+        catch (\Throwable $e) {
             return false;
         }
     }
