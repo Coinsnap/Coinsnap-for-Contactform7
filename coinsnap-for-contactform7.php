@@ -2,7 +2,7 @@
 /**
  * Plugin Name:     Coinsnap for Contact Form 7
  * Plugin URI:      https://www.coinsnap.io
- * Description:     Provides a <a href="https://coinsnap.io">Coinsnap</a>  - Bitcoin + Lightning Payment Gateway for <a href="https://wordpress.org/plugins/contact-form-7/">Contact Form 7</a>.
+ * Description:     Provides a <a href="https://coinsnap.io">Coinsnap</a>  - Bitcoin + Lightning Payment Gateway for Contact Form 7.
  * Version:         1.0.0
  * Author:          Coinsnap
  * Author URI:      https://coinsnap.io/
@@ -11,6 +11,7 @@
  * Requires PHP:    7.4
  * Tested up to:    6.6.2
  * Requires at least: 5.2
+ * CF7 tested up to: 5.9.8
  * License:         GPL2
  * License URI:     https://www.gnu.org/licenses/gpl-2.0.html
  *
@@ -20,17 +21,17 @@
 defined( 'ABSPATH' ) || exit;
 define( 'COINSNAP_REFERRAL_CODE', 'D19827' );
 define( 'COINSNAP_VERSION', '1.0.0' );
-add_action( 'init', array( 'coinsnapcf7', 'load' ), 5 );
+add_action( 'init', array( 'cf7_coinsnap', 'load' ), 5 );
 register_activation_hook( __FILE__, "coinsnapcf7_activate" );
 register_deactivation_hook( __FILE__, "coinsnapcf7_deactivate" );
 define( 'WPCF7_LOAD_JS', false );
 
-class coinsnapcf7 {
-	public static function load() {
-		require_once( plugin_dir_path( __FILE__ ) . 'library/loader.php' );
-		require_once( 'class-cf7-coinsnap.php' );
-		CoinsnapCf7Class::get_instance();
-	}
+class cf7_coinsnap {
+    public static function load() {
+        require_once( plugin_dir_path( __FILE__ ) . 'library/loader.php' );
+        require_once( 'coinsnapcf7-class.php' );
+	CoinsnapCf7::get_instance();
+    }
 }
 
 function coinsnapcf7_activate() {
@@ -59,8 +60,8 @@ function coinsnapcf7_activate() {
 function coinsnapcf7_deactivate() {
 	global $wpdb;
 	$table_name = $wpdb->prefix . "coinsnapcf7_extension";
-	$wpdb->prepare( "DROP TABLE IF EXISTS %s", $table_name  );
-	delete_option( 'coinsnapcf7_check_show_warning' );
+	$wpdb->query( $wpdb->prepare( "DROP TABLE IF EXISTS %s", $table_name ) );
+	delete_option( 'cf7_coinsnap_check_show_warning' );
 }
 
 if (!function_exists('is_plugin_active')) {
@@ -69,17 +70,16 @@ if (!function_exists('is_plugin_active')) {
 
 function coinsnapcf7_check_contact_form_7_dependency() {
 	if (!is_plugin_active('contact-form-7/wp-contact-form-7.php')) {
-		add_action('admin_notices', '*_dependency_notice');
+		add_action('admin_notices', 'coinsnapcf7_dependency_notice');
 		// Optionally, deactivate your plugin
 		deactivate_plugins(plugin_basename(__FILE__));
 	}
 }
 add_action('admin_init', 'coinsnapcf7_check_contact_form_7_dependency');
 
-function coinsnapcf7_dependency_notice() {
-	?>
+function coinsnapcf7_dependency_notice() {?>
   <div class="notice notice-error">
-    <p><?php esc_html('Coinsnap for Contact Form 7 plugin requires Contact Form 7 to be installed and activated.'); ?></p>
+    <p><?php esc_html_e('Coinsnap for Contact Form 7 plugin requires Contact Form 7 to be installed and activated.', 'coinsnap-for-contactform7'); ?></p>
   </div>
 	<?php
 }
@@ -87,10 +87,10 @@ function coinsnapcf7_dependency_notice() {
 // Add custom styling.
 function coinsnapcf7_enqueue_admin_styles( $hook ) {
 	// Register the CSS file
-	wp_register_style( 'coinsnapcf7-admin-styles', plugins_url( 'css/coinsnapcf7/-styles.css', __FILE__  ), array(), COINSNAP_VERSION );
+	wp_register_style( 'coinsnapcf7_admin-styles', plugins_url( 'css/coinsnapcf7-styles.css', __FILE__ ), array(), COINSNAP_VERSION );
 
 	// Enqueue the CSS file
-	wp_enqueue_style( 'coinsnapcf7-admin-styles' );
+	wp_enqueue_style( 'coinsnapcf7_admin-styles' );
 }
 
 add_action( 'admin_enqueue_scripts', 'coinsnapcf7_enqueue_admin_styles' );
