@@ -42,7 +42,8 @@ class CoinsnapCf7 {
 		$limit        = 20;
 		$offset       = ( $pagenum - 1 ) * $limit;
 		$table_name   = $this->get_tablename();
-		$transactions = $wpdb->get_results( $wpdb->prepare("SELECT * FROM %s ORDER BY id DESC LIMIT %s, %s", $table_name, $offset, $limit ), ARRAY_A);
+                $transactions = $wpdb->get_results( $wpdb->prepare("SELECT * FROM %i ORDER BY id DESC LIMIT %d, %d", $table_name, $offset, $limit ), ARRAY_A);
+                
 		$total        = $wpdb->get_var( $wpdb->prepare("SELECT COUNT(id) FROM %s  ",$table_name) );
 		$num_of_pages = ceil( $total / $limit );
 		$cntx         = 0;
@@ -234,7 +235,7 @@ class CoinsnapCf7 {
 			return;
 		}
 		$submission_data = $submission->get_posted_data();
-		$payment_amount  = $submission_data[ $amount_field ] ?: '0';
+		$payment_amount  = $submission_data[ $amount_field ] ?? '0';
 		$currency        = get_post_meta( $post_id, "_cf7_coinsnap_currency", true );
 		$buyerEmail      = $submission_data[ $email_field ] ?? '';
 		$buyerName       = $submission_data[ $name_field ] ?? '';
@@ -260,7 +261,7 @@ class CoinsnapCf7 {
 			'name'         => $buyerName,
 			'email'        => $buyerEmail,
 			'amount'       => $payment_amount,
-		], ['%d', '%s', '%s', '%s', '%s', '%d']   );
+		], ['%d', '%s', '%s', '%s', '%s', '%f']   );
                 
 		if ( $wpdb->last_error != '' ) {
 			echo esc_html($wpdb->last_error);
