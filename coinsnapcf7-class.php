@@ -27,7 +27,7 @@ class CoinsnapCf7 {
 
 
 	function coinsnapcf7_admin_menu() {
-		add_submenu_page( 'wpcf7', esc_html__( 'Coinsnap Payments', 'coinsnap-for-contactform7' ), esc_html__( 'Coinsnap Payments', 'coinsnap-for-contactform7' ), 'wpcf7_edit_contact_forms', 'cf7_coinsnap_admin_list_trans', array(
+		add_submenu_page( 'wpcf7', esc_html__( 'Coinsnap Payments', 'coinsnap-for-contactform7' ), esc_html__( 'Coinsnap Payments', 'coinsnap-for-contactform7' ), 'wpcf7_edit_contact_forms', 'coinsnapcf7_admin_list_trans', array(
 			$this,
 			'coinsnapcf7_admin_list_trans'
 		) );
