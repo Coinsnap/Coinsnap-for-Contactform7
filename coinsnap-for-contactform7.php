@@ -34,27 +34,27 @@ class cf7_coinsnap {
     }
 }
 
+//  Transaction table creation
 function coinsnapcf7_activate() {
+    global $wpdb;
+    $table_name = $wpdb->prefix . "coinsnapcf7_extension";
+    if ( $wpdb->get_var($wpdb->prepare( "SHOW TABLES LIKE %s", $table_name )) != $table_name ) {
+        $sql = "CREATE TABLE $table_name (
+            `id` int(11) UNSIGNED NOT NULL AUTO_INCREMENT,
+            `form_id` INT(11) NOT NULL,			      	
+            `field_values` TEXT NOT NULL,
+            `payment_details` TEXT NOT NULL,
+            `submit_time` INT(11) NOT NULL,
+            `name` varchar(150)  NULL,
+            `email` varchar(200)  NULL,
+            `amount` decimal(12,2) NOT NULL DEFAULT 0,
+            `status` varchar(20) NOT NULL DEFAULT 'New',
+            PRIMARY KEY (`id`)
+	) DEFAULT COLLATE=utf8_general_ci";
 
-	global $wpdb;
-	$table_name = $wpdb->prefix . "coinsnapcf7_extension";
-	if ( $wpdb->get_var($wpdb->prepare( "SHOW TABLES LIKE %s", $table_name )) != $table_name ) {
-		$sql = "CREATE TABLE $table_name (
-    				`id` int(11) UNSIGNED NOT NULL AUTO_INCREMENT,
-			      	`form_id` INT(11) NOT NULL,			      	
-			      	`field_values` TEXT NOT NULL,
-			      	`payment_details` TEXT NOT NULL,
-			      	`submit_time` INT(11) NOT NULL,
-				    `name` varchar(150)  NULL,
-					`email` varchar(200)  NULL,
-					`amount` decimal(12,2) NOT NULL DEFAULT 0,
-			      	`status` varchar(20) NOT NULL DEFAULT 'New',
-			      	PRIMARY KEY (`id`)
-				) DEFAULT COLLATE=utf8_general_ci";
-
-		require_once( ABSPATH . 'wp-admin/includes/upgrade.php' );
-		dbDelta( $sql );
-	}
+        require_once( ABSPATH . 'wp-admin/includes/upgrade.php' );
+        dbDelta( $sql );
+    }
 }
 
 function coinsnapcf7_deactivate() {

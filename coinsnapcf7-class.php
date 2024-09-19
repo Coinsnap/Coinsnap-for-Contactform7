@@ -253,14 +253,15 @@ class CoinsnapCf7 {
 		}
 		$table_name = $this->get_tablename();
 
-		$wpdb->insert( $table_name, $trans = array(
+		$wpdb->insert( $table_name, [
 			'form_id'      => $post_id,
 			'field_values' => wp_json_encode( $submission_data, true ),
 			'submit_time'  => time(),
 			'name'         => $buyerName,
 			'email'        => $buyerEmail,
 			'amount'       => $payment_amount,
-		), $schema = array( '%d', '%s', '%s', '%s', '%s', '%d' ) );
+		], ['%d', '%s', '%s', '%s', '%s', '%d']   );
+                
 		if ( $wpdb->last_error != '' ) {
 			echo esc_html($wpdb->last_error);
 			exit;
