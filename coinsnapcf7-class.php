@@ -44,7 +44,7 @@ class CoinsnapCf7 {
 		$table_name   = $this->get_tablename();
                 $transactions = $wpdb->get_results( $wpdb->prepare("SELECT * FROM %i ORDER BY id DESC LIMIT %d, %d", $table_name, $offset, $limit ), ARRAY_A);
                 
-		$total        = $wpdb->get_var( $wpdb->prepare("SELECT COUNT(id) FROM %s  ",$table_name) );
+		$total        = $wpdb->get_var( $wpdb->prepare("SELECT COUNT(id) FROM %i  ",$table_name) );
 		$num_of_pages = ceil( $total / $limit );
 		$cntx         = 0;
 		echo '<div class="wrap">
@@ -110,8 +110,8 @@ class CoinsnapCf7 {
 	function coinsnapcf7_save_settings( $cf7 ) {
 
 		$post_id = sanitize_text_field( filter_input(INPUT_POST,'post',FILTER_VALIDATE_INT) );
-		if ( ! empty( filter_input(INPUT_POST,'coinsnapcf7_enable',FILTER_VALIDATE_INT) ) ) {
-			$coinsnapcf7_enable = sanitize_text_field( filter_input(INPUT_POST,'coinsnapcf7_enable',FILTER_VALIDATE_INT) );
+		if ( ! empty( filter_input(INPUT_POST,'coinsnap_enable',FILTER_VALIDATE_INT) ) ) {
+			$coinsnap_enable = sanitize_text_field( filter_input(INPUT_POST,'coinsnap_enable',FILTER_VALIDATE_INT) );
 			update_post_meta( $post_id, "_cf7_coinsnap_enable", $coinsnap_enable );
 		} else {
 			update_post_meta( $post_id, "_cf7_coinsnap_enable", 0 );
@@ -316,7 +316,7 @@ class CoinsnapCf7 {
             return;
 	}
 
-		$this->_postid = filter_input(INPUT_GET,'form_id',FILTER_VALIDATE_INT);
+		$this->_postid = filter_input(INPUT_GET,'form_id',FILTER_SANITIZE_STRING);
 
 		$notify_json = file_get_contents( 'php://input' );
 
