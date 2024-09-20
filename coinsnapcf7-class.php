@@ -156,31 +156,31 @@ class CoinsnapCf7 {
 		$admin_settings = '<div class="coinsnapcf7">';
 		$admin_settings .= '<div class="coinsnapcf7-row">
                           <div class="coinsnapcf7-field inline-form">
-                           <input type="checkbox" value="1" name="coinsnap_enable" ' . $checked . '><label>Enable Coinsnap on this form</label>
+                           <input type="checkbox" value="1" name="coinsnap_enable" ' . esc_html($checked) . '><label>Enable Coinsnap on this form</label>
                           </div>
                         </div>';
 
 		$admin_settings .= '<div class="coinsnapcf7-row"><hr></div>';
 		$admin_settings .= '<div class="coinsnapcf7-row">
                           <label>Currency Code (required)</label>
-                          <div class="coinsnapcf7-field"><input type="text" value="' . $coinsnap_currency . '" placeholder="EUR" name="coinsnap_currency">
+                          <div class="coinsnapcf7-field"><input type="text" value="' . esc_html($coinsnap_currency) . '" placeholder="EUR" name="coinsnap_currency">
                           </div>
                         </div>';
 		$admin_settings .= '<div class="coinsnapcf7-row">
                           <label>Store ID (required)</label>
-                          <div class="coinsnapcf7-field"><input class="long-input" type="text" value="' . $coinsnap_store_id . '" name="coinsnap_store_id">
+                          <div class="coinsnapcf7-field"><input class="long-input" type="text" value="' . esc_html($coinsnap_store_id) . '" name="coinsnap_store_id">
                           <div class="description">Please input your personal Store ID, which you will find in your Coinsnap account.</div>
                           </div>
                         </div>';
 		$admin_settings .= '<div class="coinsnapcf7-row">
                           <label>API Key (required)</label>
-                          <div class="coinsnapcf7-field"><input class="long-input" type="text" value="' . $coinsnap_api_key . '" name="coinsnap_api_key">
+                          <div class="coinsnapcf7-field"><input class="long-input" type="text" value="' . esc_html($coinsnap_api_key) . '" name="coinsnap_api_key">
                           <div class="description">Please input the API Key that you will find in your Coinsnap account.</div>
                           </div>
                         </div>';
 		$admin_settings .= '<div class="coinsnapcf7-row">
                           <label>Success URL</label>
-                          <div class="coinsnapcf7-field"><input class="long-input" type="text" value="' . $coinsnap_s_url . '" name="coinsnap_s_url">
+                          <div class="coinsnapcf7-field"><input class="long-input" type="text" value="' . esc_html($coinsnap_s_url) . '" name="coinsnap_s_url">
                           <div class="description">Please enter here the URL of the page on your website that the buyer will be re-directed to after he finalizes the transaction. (Note: You must create this page, i.e. a “thank you”-page, yourself on your website!)</div> 
                           </div>
                         </div>';
@@ -206,7 +206,7 @@ class CoinsnapCf7 {
                         <div class="description">Please copy the contents of the textarea above and paste it in your form. Note that the `<strong>cs_amount</strong>` field is mandatory, `<strong>cs_name</strong>` and `<strong>cs_email</strong>` are optional.</div>
                     </div>
                 </div>';
-		$admin_settings .= '<input type="hidden" name="post" value="' . $post_id . '"></div>';
+		$admin_settings .= '<input type="hidden" name="post" value="' . esc_html($post_id) . '"></div>';
 
 		echo $admin_settings;
 	}

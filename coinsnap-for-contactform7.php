@@ -10,7 +10,7 @@
  * Domain Path:     /languages
  * Requires PHP:    7.4
  * Tested up to:    6.6.2
- * Requires at least: 5.2
+ * Requires at least: 6.2
  * CF7 tested up to: 5.9.8
  * License:         GPL2
  * License URI:     https://www.gnu.org/licenses/gpl-2.0.html
@@ -38,7 +38,7 @@ class cf7_coinsnap {
 function coinsnapcf7_activate() {
     global $wpdb;
     $table_name = $wpdb->prefix . "coinsnapcf7_extension";
-    if ( $wpdb->get_var($wpdb->prepare( "SHOW TABLES LIKE %s", $table_name )) != $table_name ) {
+    if ( $wpdb->get_var($wpdb->prepare( "SHOW TABLES LIKE %i", $table_name )) != $table_name ) {
         $sql = "CREATE TABLE $table_name (
             `id` int(11) UNSIGNED NOT NULL AUTO_INCREMENT,
             `form_id` INT(11) NOT NULL,			      	
@@ -60,7 +60,7 @@ function coinsnapcf7_activate() {
 function coinsnapcf7_deactivate() {
 	global $wpdb;
 	$table_name = $wpdb->prefix . "coinsnapcf7_extension";
-	$wpdb->query( $wpdb->prepare( "DROP TABLE IF EXISTS %s", $table_name ) );
+	$wpdb->query( $wpdb->prepare( "DROP TABLE IF EXISTS %i", $table_name ) );
 	delete_option( 'coinsnapcf7_check_show_warning' );
 }
 
