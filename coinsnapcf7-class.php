@@ -109,19 +109,40 @@ class CoinsnapCf7 {
 
 	function coinsnapcf7_save_settings( $cf7 ) {
 
-		$post_id = sanitize_text_field( filter_input(INPUT_POST,'post',FILTER_VALIDATE_INT) );
-		if ( ! empty( filter_input(INPUT_POST,'coinsnap_enable',FILTER_VALIDATE_INT) ) ) {
-			$coinsnap_enable = sanitize_text_field( filter_input(INPUT_POST,'coinsnap_enable',FILTER_VALIDATE_INT) );
-			update_post_meta( $post_id, "_cf7_coinsnap_enable", $coinsnap_enable );
-		} else {
-			update_post_meta( $post_id, "_cf7_coinsnap_enable", 0 );
-		}
+            $post_id = sanitize_text_field( filter_input(INPUT_POST,'post',FILTER_VALIDATE_INT) );
+            if ( ! empty( filter_input(INPUT_POST,'coinsnap_enable',FILTER_VALIDATE_INT) ) ) {
+		$coinsnap_enable = sanitize_text_field( filter_input(INPUT_POST,'coinsnap_enable',FILTER_VALIDATE_INT) );
+		update_post_meta( $post_id, "_cf7_coinsnap_enable", $coinsnap_enable );
+            }
+            else {
+                update_post_meta( $post_id, "_cf7_coinsnap_enable", 0 );
+            }
 
-		update_post_meta( $post_id, "_cf7_coinsnap_currency", sanitize_text_field( filter_input(INPUT_POST,'coinsnap_currency',FILTER_SANITIZE_STRING) ) );
-		update_post_meta( $post_id, "_cf7_coinsnap_store_id", sanitize_text_field( filter_input(INPUT_POST,'coinsnap_store_id',FILTER_SANITIZE_STRING) ) );
-		update_post_meta( $post_id, "_cf7_coinsnap_api_key", sanitize_text_field( filter_input(INPUT_POST,'coinsnap_api_key',FILTER_SANITIZE_STRING) ) );
-		update_post_meta( $post_id, "_cf7_coinsnap_s_url", sanitize_text_field( filter_input(INPUT_POST,'coinsnap_s_url',FILTER_SANITIZE_STRING) ) );
+            update_post_meta( $post_id, "_cf7_coinsnap_currency", sanitize_text_field( filter_input(INPUT_POST,'coinsnap_currency',FILTER_SANITIZE_STRING) ) );
+            update_post_meta( $post_id, "_cf7_coinsnap_store_id", sanitize_text_field( filter_input(INPUT_POST,'coinsnap_store_id',FILTER_SANITIZE_STRING) ) );
+            update_post_meta( $post_id, "_cf7_coinsnap_api_key", sanitize_text_field( filter_input(INPUT_POST,'coinsnap_api_key',FILTER_SANITIZE_STRING) ) );
+            update_post_meta( $post_id, "_cf7_coinsnap_s_url", sanitize_text_field( filter_input(INPUT_POST,'coinsnap_s_url',FILTER_SANITIZE_STRING) ) );
+                
+            $this->_postid = $post_id;
+            
+            $webhook_url = $this->get_webhook_url();
+            if ( ! $this->webhookExists( $this->getStoreId(), $this->getApiKey(), $webhook_url ) ) {
+                if ( ! $this->registerWebhook( $this->getStoreId(), $this->getApiKey(), $webhook_url ) ) {
+                    //echo( esc_html__( 'unable to set Webhook url.', 'coinsnap-for-contactform7' ) );
+                    add_action( 'admin_notices', 'coinsnapcf7_webhook_failed');
+                }
+                else {
+                    add_action( 'admin_notices', 'coinsnapcf7_webhook_registered');
+                }
+            }
+            else {
+                add_action( 'admin_notices', 'coinsnapcf7_webhook_exists');
+            }
 	}
+        
+        
+
+
 
 
 	function coinsnapcf7_editor_panels( $panels ) {
@@ -153,47 +174,47 @@ class CoinsnapCf7 {
 
 		$checked = ( $enable == "1" ) ? "CHECKED" : '';
 
-		$admin_settings = '<div class="coinsnapcf7">';
-		$admin_settings .= '<div class="coinsnapcf7-row">
+		echo '<div class="coinsnapcf7">';
+		echo '<div class="coinsnapcf7-row">
                           <div class="coinsnapcf7-field inline-form">
                            <input type="checkbox" value="1" name="coinsnap_enable" ' . esc_html($checked) . '><label>Enable Coinsnap on this form</label>
                           </div>
                         </div>';
 
-		$admin_settings .= '<div class="coinsnapcf7-row"><hr></div>';
-		$admin_settings .= '<div class="coinsnapcf7-row">
+		echo '<div class="coinsnapcf7-row"><hr></div>';
+		echo '<div class="coinsnapcf7-row">
                           <label>Currency Code (required)</label>
                           <div class="coinsnapcf7-field"><input type="text" value="' . esc_html($coinsnap_currency) . '" placeholder="EUR" name="coinsnap_currency">
                           </div>
                         </div>';
-		$admin_settings .= '<div class="coinsnapcf7-row">
+		echo '<div class="coinsnapcf7-row">
                           <label>Store ID (required)</label>
                           <div class="coinsnapcf7-field"><input class="long-input" type="text" value="' . esc_html($coinsnap_store_id) . '" name="coinsnap_store_id">
                           <div class="description">Please input your personal Store ID, which you will find in your Coinsnap account.</div>
                           </div>
                         </div>';
-		$admin_settings .= '<div class="coinsnapcf7-row">
+		echo '<div class="coinsnapcf7-row">
                           <label>API Key (required)</label>
                           <div class="coinsnapcf7-field"><input class="long-input" type="text" value="' . esc_html($coinsnap_api_key) . '" name="coinsnap_api_key">
                           <div class="description">Please input the API Key that you will find in your Coinsnap account.</div>
                           </div>
                         </div>';
-		$admin_settings .= '<div class="coinsnapcf7-row">
+		echo '<div class="coinsnapcf7-row">
                           <label>Success URL</label>
                           <div class="coinsnapcf7-field"><input class="long-input" type="text" value="' . esc_html($coinsnap_s_url) . '" name="coinsnap_s_url">
                           <div class="description">Please enter here the URL of the page on your website that the buyer will be re-directed to after he finalizes the transaction. (Note: You must create this page, i.e. a “thank you”-page, yourself on your website!)</div> 
                           </div>
                         </div>';
-		$admin_settings .= '<div class="coinsnapcf7-row"><hr></div>';
-		$admin_settings .= '<div class="coinsnapcf7-row"><h3>How do I integrate Bitcoin-Lighting Payment in my form?</h3></div><ol>';
-		$admin_settings .= '<li class="coinsnapcf7-row">To specify the cost of your offering, use the number element and name it <strong>cs_amount</strong>: [number* cs_amount min:0.01]</li>';
-		$admin_settings .= '<li class="coinsnapcf7-row">You define the cost of your offering by manipulating the value of the 0.01 in the tag, i.e. writing [number* cs_amount min:2.50]</li>';
-		$admin_settings .= '<li class="coinsnapcf7-row">If you want to see the name and/or the email of the buyer in the transaction overview in your Coinsnap account, name the respective fields accordingly <strong>cs_name</strong> and <strong>cs_email</strong>: [text cs_name] [email cs_email]</li>';
-		$admin_settings .= '</ol><div class="coinsnapcf7-row"><p>NOTE: <strong>cs_amount</strong> is a mandatory field you must use in your form to make the plugin work. <strong>cs_name</strong> and <strong>cs_email</strong> you only need to use if you want to see this information in your Coinsnap transaction overview.</p></div>';
-		$admin_settings .= '<div class="coinsnapcf7-row"><hr></div>';
-		$admin_settings .= '<div class="coinsnapcf7-row"><h3>Or copy this code into your form, and then add all other fields needed to create your transactional form:</h3></div>';
+		echo '<div class="coinsnapcf7-row"><hr></div>';
+		echo '<div class="coinsnapcf7-row"><h3>How do I integrate Bitcoin-Lighting Payment in my form?</h3></div><ol>';
+		echo '<li class="coinsnapcf7-row">To specify the cost of your offering, use the number element and name it <strong>cs_amount</strong>: [number* cs_amount min:0.01]</li>';
+		echo '<li class="coinsnapcf7-row">You define the cost of your offering by manipulating the value of the 0.01 in the tag, i.e. writing [number* cs_amount min:2.50]</li>';
+		echo '<li class="coinsnapcf7-row">If you want to see the name and/or the email of the buyer in the transaction overview in your Coinsnap account, name the respective fields accordingly <strong>cs_name</strong> and <strong>cs_email</strong>: [text cs_name] [email cs_email]</li>';
+		echo '</ol><div class="coinsnapcf7-row"><p>NOTE: <strong>cs_amount</strong> is a mandatory field you must use in your form to make the plugin work. <strong>cs_name</strong> and <strong>cs_email</strong> you only need to use if you want to see this information in your Coinsnap transaction overview.</p></div>';
+		echo '<div class="coinsnapcf7-row"><hr></div>';
+		echo '<div class="coinsnapcf7-row"><h3>Or copy this code into your form, and then add all other fields needed to create your transactional form:</h3></div>';
 
-		$admin_settings .= '<div class="coinsnapcf7-row">
+		echo '<div class="coinsnapcf7-row">
                     <div class="coinsnapcf7-field">
                         <textarea readonly rows="6">
 <label>Enter amount</label>
@@ -206,9 +227,9 @@ class CoinsnapCf7 {
                         <div class="description">Please copy the contents of the textarea above and paste it in your form. Note that the `<strong>cs_amount</strong>` field is mandatory, `<strong>cs_name</strong>` and `<strong>cs_email</strong>` are optional.</div>
                     </div>
                 </div>';
-		$admin_settings .= '<input type="hidden" name="post" value="' . esc_html($post_id) . '"></div>';
+		echo '<input type="hidden" name="post" value="' . esc_html($post_id) . '"></div>';
 
-		echo $admin_settings;
+		//echo $admin_settings;
 	}
 
 	public function redirect_payment( $cf7 ) {
@@ -239,19 +260,20 @@ class CoinsnapCf7 {
 		$currency        = get_post_meta( $post_id, "_cf7_coinsnap_currency", true );
 		$buyerEmail      = $submission_data[ $email_field ] ?? '';
 		$buyerName       = $submission_data[ $name_field ] ?? '';
-		$webhook_url     = $this->get_webhook_url();
-
+		
 		// Remove already populated data.
 		$remove = [ $amount_field, $name_field, $email_field ];
 
 		$remainingMetadata = array_diff_key( $submission_data, array_flip( $remove ) );
-
-		if ( ! $this->webhookExists( $this->getStoreId(), $this->getApiKey(), $webhook_url ) ) {
+/*
+		$webhook_url     = $this->get_webhook_url();
+                if ( ! $this->webhookExists( $this->getStoreId(), $this->getApiKey(), $webhook_url ) ) {
 			if ( ! $this->registerWebhook( $this->getStoreId(), $this->getApiKey(), $webhook_url ) ) {
 				echo( esc_html__( 'unable to set Webhook url.', 'coinsnap-for-contactform7' ) );
 				exit;
 			}
 		}
+*/
 		$table_name = $this->get_tablename();
 
 		$wpdb->insert( $table_name, [

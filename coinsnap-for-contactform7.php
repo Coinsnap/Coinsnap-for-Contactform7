@@ -80,8 +80,7 @@ add_action('admin_init', 'coinsnapcf7_check_contact_form_7_dependency');
 function coinsnapcf7_dependency_notice() {?>
   <div class="notice notice-error">
     <p><?php esc_html_e('Coinsnap for Contact Form 7 plugin requires Contact Form 7 to be installed and activated.', 'coinsnap-for-contactform7'); ?></p>
-  </div>
-	<?php
+  </div><?php
 }
 
 // Add custom styling.
@@ -108,6 +107,24 @@ function coinsnapcf7_check_criteria_and_show_warning() {
 		echo '<p><strong>Warning:</strong> You must include `cs_amount` field in the Coinsnap form in order to successfully connect to your Coinsnap account.</p>';
 		echo '</div>';
 	}
+}
+
+function coinsnapcf7_webhook_exists(){
+    echo '<div class="notice notice-info"><p>';
+    esc_html_e('Webhook already exists, skipping webhook creation', 'coinsnap-for-contactform7');
+    echo '</p></div>';
+}
+
+function coinsnapcf7_webhook_registered(){
+    echo '<div class="notice notice-success"><p>';
+    esc_html_e('Successfully registered a new webhook on Coinsnap Server', 'coinsnap-for-contactform7');
+    echo '</p></div>';
+}
+
+function coinsnapcf7_webhook_failed(){
+    echo '<div class="notice notice-error"><p>';
+    esc_html_e('Unable to create webhook on Coinsnap Server', 'coinsnap-for-contactform7');
+    echo '</p></div>';
 }
 
 // Hook into the 'wpcf7_save_contact_form' action
