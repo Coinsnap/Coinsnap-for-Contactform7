@@ -12,10 +12,35 @@ class CoinsnapCf7 {
 		add_filter( 'wpcf7_editor_panels', array( $this, 'coinsnapcf7_editor_panels' ) );
 		add_action( 'wpcf7_admin_after_additional_settings', array($this,'coinsnapcf7_admin_after_additional_settings') );
 		add_action( 'wpcf7_save_contact_form', array( $this, 'coinsnapcf7_save_settings' ) );
+                add_action( 'wpcf7_admin_notices', array( $this, 'coinsnapcf7_webhook'));
 		add_action( 'wpcf7_mail_sent', array( $this, 'redirect_payment' ) );
 		add_action( 'init', array( $this, 'process_webhook' ) );
 		add_action( 'admin_menu', array( $this, 'coinsnapcf7_admin_menu' ), 20 );
 	}
+        
+        public function coinsnapcf7_webhook($cf7){
+            $post_id = sanitize_text_field( filter_input(INPUT_GET,'post',FILTER_VALIDATE_INT) );
+            
+            $webhook_status = get_post_meta($post_id , "_cf7_coinsnap_webhook", true );
+            if(isset($webhook_status) && !empty($webhook_status)){
+                if($webhook_status === 'exists'){
+                    echo '<div class="notice notice-info"><p>';
+                    esc_html_e('Webhook already exists, skipping webhook creation', 'coinsnap-for-contactform7');
+                    echo '</p></div>';
+                }
+                elseif($webhook_status === 'failed'){
+                    echo '<div class="notice notice-error"><p>';
+                    esc_html_e('Unable to create webhook on Coinsnap Server', 'coinsnap-for-contactform7');
+                    echo '</p></div>';
+                }
+                elseif($webhook_status === 'registered'){
+                    echo '<div class="notice notice-success"><p>';
+                    esc_html_e('Successfully registered a new webhook on Coinsnap Server', 'coinsnap-for-contactform7');
+                    echo '</p></div>';
+                }
+                update_post_meta( $post_id, "_cf7_coinsnap_webhook", '' );
+            }
+        }
 
 	public static function get_instance() {
 		if ( self::$_instance == null ) {
@@ -129,14 +154,14 @@ class CoinsnapCf7 {
             if ( ! $this->webhookExists( $this->getStoreId(), $this->getApiKey(), $webhook_url ) ) {
                 if ( ! $this->registerWebhook( $this->getStoreId(), $this->getApiKey(), $webhook_url ) ) {
                     //echo( esc_html__( 'unable to set Webhook url.', 'coinsnap-for-contactform7' ) );
-                    add_action( 'admin_notices', 'coinsnapcf7_webhook_failed');
+                    update_post_meta( $post_id, "_cf7_coinsnap_webhook", 'failed' );
                 }
                 else {
-                    add_action( 'admin_notices', 'coinsnapcf7_webhook_registered');
+                    update_post_meta( $post_id, "_cf7_coinsnap_webhook", 'registered' );
                 }
             }
             else {
-                add_action( 'admin_notices', 'coinsnapcf7_webhook_exists');
+                update_post_meta( $post_id, "_cf7_coinsnap_webhook", 'exists' );
             }
 	}
         

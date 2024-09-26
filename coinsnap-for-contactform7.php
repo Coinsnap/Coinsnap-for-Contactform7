@@ -109,23 +109,9 @@ function coinsnapcf7_check_criteria_and_show_warning() {
 	}
 }
 
-function coinsnapcf7_webhook_exists(){
-    echo '<div class="notice notice-info"><p>';
-    esc_html_e('Webhook already exists, skipping webhook creation', 'coinsnap-for-contactform7');
-    echo '</p></div>';
-}
 
-function coinsnapcf7_webhook_registered(){
-    echo '<div class="notice notice-success"><p>';
-    esc_html_e('Successfully registered a new webhook on Coinsnap Server', 'coinsnap-for-contactform7');
-    echo '</p></div>';
-}
 
-function coinsnapcf7_webhook_failed(){
-    echo '<div class="notice notice-error"><p>';
-    esc_html_e('Unable to create webhook on Coinsnap Server', 'coinsnap-for-contactform7');
-    echo '</p></div>';
-}
+
 
 // Hook into the 'wpcf7_save_contact_form' action
 add_action( 'wpcf7_save_contact_form', 'coinsnapcf7_check_field_existence', 10, 1 );
