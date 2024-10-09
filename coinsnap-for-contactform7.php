@@ -22,9 +22,9 @@ defined( 'ABSPATH' ) || exit;
 define( 'COINSNAP_REFERRAL_CODE', 'D19827' );
 define( 'COINSNAP_VERSION', '1.0.0' );
 add_action( 'init', array( 'cf7_coinsnap', 'load' ), 5 );
+if(!defined( 'WPCF7_LOAD_JS' )){define( 'WPCF7_LOAD_JS', false );}
 register_activation_hook( __FILE__, "coinsnapcf7_activate" );
 register_deactivation_hook( __FILE__, "coinsnapcf7_deactivate" );
-define( 'WPCF7_LOAD_JS', false );
 
 class cf7_coinsnap {
     public static function load() {
@@ -38,7 +38,7 @@ class cf7_coinsnap {
 function coinsnapcf7_activate() {
     global $wpdb;
     $table_name = $wpdb->prefix . "coinsnapcf7_extension";
-    if ( $wpdb->get_var($wpdb->prepare( "SHOW TABLES LIKE %i", $table_name )) != $table_name ) {
+        if ( $wpdb->query($wpdb->prepare( "SHOW TABLES LIKE '%i'", $table_name )) != $table_name ) {
         $sql = "CREATE TABLE $table_name (
             `id` int(11) UNSIGNED NOT NULL AUTO_INCREMENT,
             `form_id` INT(11) NOT NULL,			      	

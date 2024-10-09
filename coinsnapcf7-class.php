@@ -143,10 +143,10 @@ class CoinsnapCf7 {
                 update_post_meta( $post_id, "_cf7_coinsnap_enable", 0 );
             }
 
-            update_post_meta( $post_id, "_cf7_coinsnap_currency", sanitize_text_field( filter_input(INPUT_POST,'coinsnap_currency',FILTER_SANITIZE_STRING) ) );
-            update_post_meta( $post_id, "_cf7_coinsnap_store_id", sanitize_text_field( filter_input(INPUT_POST,'coinsnap_store_id',FILTER_SANITIZE_STRING) ) );
-            update_post_meta( $post_id, "_cf7_coinsnap_api_key", sanitize_text_field( filter_input(INPUT_POST,'coinsnap_api_key',FILTER_SANITIZE_STRING) ) );
-            update_post_meta( $post_id, "_cf7_coinsnap_s_url", sanitize_text_field( filter_input(INPUT_POST,'coinsnap_s_url',FILTER_SANITIZE_STRING) ) );
+            update_post_meta( $post_id, "_cf7_coinsnap_currency", sanitize_text_field( filter_input(INPUT_POST,'coinsnap_currency',FILTER_SANITIZE_FULL_SPECIAL_CHARS) ) );
+            update_post_meta( $post_id, "_cf7_coinsnap_store_id", sanitize_text_field( filter_input(INPUT_POST,'coinsnap_store_id',FILTER_SANITIZE_FULL_SPECIAL_CHARS) ) );
+            update_post_meta( $post_id, "_cf7_coinsnap_api_key", sanitize_text_field( filter_input(INPUT_POST,'coinsnap_api_key',FILTER_SANITIZE_FULL_SPECIAL_CHARS) ) );
+            update_post_meta( $post_id, "_cf7_coinsnap_s_url", sanitize_text_field( filter_input(INPUT_POST,'coinsnap_s_url',FILTER_SANITIZE_FULL_SPECIAL_CHARS) ) );
                 
             $this->_postid = $post_id;
             
@@ -359,11 +359,11 @@ class CoinsnapCf7 {
     public function process_webhook() {
         global $wpdb;
 
-        if ( filter_input(INPUT_GET,'cf7-listener',FILTER_SANITIZE_STRING) === null  || filter_input(INPUT_GET,'cf7-listener',FILTER_SANITIZE_STRING) !== 'coinsnap' ) {
+        if ( filter_input(INPUT_GET,'cf7-listener',FILTER_SANITIZE_FULL_SPECIAL_CHARS) === null  || filter_input(INPUT_GET,'cf7-listener',FILTER_SANITIZE_FULL_SPECIAL_CHARS) !== 'coinsnap' ) {
             return;
 	}
 
-		$this->_postid = filter_input(INPUT_GET,'form_id',FILTER_SANITIZE_STRING);
+		$this->_postid = filter_input(INPUT_GET,'form_id',FILTER_SANITIZE_FULL_SPECIAL_CHARS);
 
 		$notify_json = file_get_contents( 'php://input' );
 
