@@ -1,9 +1,9 @@
-=== Coinsnap Bitcoin + Lightning payment plug-in 1.0.0 for Contact Form 7 ===
+=== Coinsnap add-on for Contact Form 7 ===
 Contributors: coinsnap
 Tags:  Coinsnap, Contact Form 7, Bitcoin, Lightning
 Requires at least: 6.2
 Requires PHP: 7.4
-Tested up to: 6.6
+Tested up to: 6.6.2
 Stable tag: 1.0.0
 License: GPLv2
 License URI: http://www.gnu.org/licenses/gpl-2.0.html
@@ -15,7 +15,7 @@ Coinsnap payment plug-in is intended for ContactForm7 to accept Bitcoin and Ligh
 [Coinsnap](https://coinsnap.io/en/) for Contact Form 7 allows you to process Bitcoin Lightning payments over the Lightning network https://app.coinsnap.io/. 
 With the Coinsnap Bitcoin-Lightning payment plugin for Contact Form 7 you only need a Lightning wallet with a Lightning address to accept Bitcoin Lightning payments on your Wordpress site.
 
-* WooCommerce Coinsnap Demo Store: https://contactform7.coinsnap.org/
+* Contact Form 7 Coinsnap Demo Site: https://contactform7.coinsnap.org/
 * Blog Article: https://coinsnap.io/en/coinsnap-for-contact-form-7/
 * WordPress: https://wordpress.org/plugins/coinsnap-for-contactform7/
 * GitHub: https://github.com/Coinsnap/Coinsnap-for-Contactform7
@@ -130,7 +130,7 @@ Then please log in to the Coinsnap backend with the appropriate credentials.
 
 After you sign up, you will be asked to provide two pieces of information.
 
-In the Website Name field, enter the name of your online store that you want customers to see when they check out.
+In the Website Name field, enter the name of your site or online store that you want customers to see when they check out.
 
 In the Lightning Address field, enter the Lightning address to which the Bitcoin and Lightning transactions should be forwarded.
 

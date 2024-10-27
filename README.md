@@ -6,8 +6,8 @@
 
 * Contributors: coinsnap
 * Tags: Lightning, Lightning Payment, SATS, Satoshi sats, bitcoin, Wordpress, Contact Form 7, accept bitcoin, bitcoin plugin, bitcoin payment processor, bitcoin e-commerce, Lightning Network, cryptocurrency, lightning payment processor
-* Requires at least: 5.2
-* Tested up to: 6.6
+* Requires at least: 6.2
+* Tested up to: 6.6.2
 * Requires PHP: 7.4
 * Stable tag: 1.0.0
 * License: MIT
@@ -15,7 +15,7 @@
 
 Coinsnap payment plug-in is intended for Worpress form builder Contact Form 7 to accept Bitcoin and Lightning payments via Coinsnap payment gateway https://app.coinsnap.io/.
 
-* WooCommerce Coinsnap Demo Store: https://contactform7.coinsnap.org/
+* CF7 Coinsnap Demo Site: https://contactform7.coinsnap.org/
 * Blog Article: https://coinsnap.io/en/coinsnap-for-contact-form-7/
 * WordPress: https://wordpress.org/plugins/coinsnap-for-contactform7/
 * GitHub: https://github.com/Coinsnap/Coinsnap-for-Contactform7
