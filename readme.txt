@@ -1,4 +1,4 @@
-=== Coinsnap Bitcoin + Lightning payment plug-in 1.0.0 for Contact Form 7 ===
+=== Coinsnap add-on for Contact Form 7 ===
 Contributors: coinsnap
 Tags:  Coinsnap, Contact Form 7, Bitcoin, Lightning
 Requires at least: 6.2

@@ -1,6 +1,6 @@
 <?php
 /**
- * Plugin Name:     Coinsnap for Contact Form 7
+ * Plugin Name:     Coinsnap add-on for Contact Form 7
  * Plugin URI:      https://www.coinsnap.io
  * Description:     Provides a <a href="https://coinsnap.io">Coinsnap</a>  - Bitcoin + Lightning Payment Gateway for Contact Form 7.
  * Version:         1.0.0
@@ -38,7 +38,7 @@ class cf7_coinsnap {
 function coinsnapcf7_activate() {
     global $wpdb;
     $table_name = $wpdb->prefix . "coinsnapcf7_extension";
-        if ( $wpdb->query($wpdb->prepare( "SHOW TABLES LIKE '%i'", $table_name )) != $table_name ) {
+        if ( $wpdb->query($wpdb->prepare( "SHOW TABLES LIKE %s", $table_name )) != $table_name ) {
         $sql = "CREATE TABLE $table_name (
             `id` int(11) UNSIGNED NOT NULL AUTO_INCREMENT,
             `form_id` INT(11) NOT NULL,			      	

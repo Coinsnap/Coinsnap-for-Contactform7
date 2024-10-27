@@ -38,6 +38,11 @@ class CoinsnapCf7 {
                     esc_html_e('Successfully registered a new webhook on Coinsnap Server', 'coinsnap-for-contactform7');
                     echo '</p></div>';
                 }
+                elseif($webhook_status === 'noconnection'){
+                    echo '<div class="notice notice-error"><p>';
+                    esc_html_e('Coinsnap connection error', 'coinsnap-for-contactform7');
+                    echo '</p></div>';
+                }
                 update_post_meta( $post_id, "_cf7_coinsnap_webhook", '' );
             }
         }
@@ -150,18 +155,24 @@ class CoinsnapCf7 {
                 
             $this->_postid = $post_id;
             
-            $webhook_url = $this->get_webhook_url();
-            if ( ! $this->webhookExists( $this->getStoreId(), $this->getApiKey(), $webhook_url ) ) {
-                if ( ! $this->registerWebhook( $this->getStoreId(), $this->getApiKey(), $webhook_url ) ) {
-                    //echo( esc_html__( 'unable to set Webhook url.', 'coinsnap-for-contactform7' ) );
-                    update_post_meta( $post_id, "_cf7_coinsnap_webhook", 'failed' );
+            $client = new \Coinsnap\Client\Store($this->getApiUrl(), $this->getApiKey());
+            $store = $client->getStore($this->getStoreId());
+            if ($store['code'] === 200) {            
+                $webhook_url = $this->get_webhook_url();
+                if ( ! $this->webhookExists( $this->getStoreId(), $this->getApiKey(), $webhook_url ) ) {
+                    if ( ! $this->registerWebhook( $this->getStoreId(), $this->getApiKey(), $webhook_url ) ) {
+                        update_post_meta( $post_id, "_cf7_coinsnap_webhook", 'failed' );
+                    }
+                    else {
+                        update_post_meta( $post_id, "_cf7_coinsnap_webhook", 'registered' );
+                    }
                 }
                 else {
-                    update_post_meta( $post_id, "_cf7_coinsnap_webhook", 'registered' );
+                    update_post_meta( $post_id, "_cf7_coinsnap_webhook", 'exists' );
                 }
             }
             else {
-                update_post_meta( $post_id, "_cf7_coinsnap_webhook", 'exists' );
+                update_post_meta( $post_id, "_cf7_coinsnap_webhook", 'noconnection' );
             }
 	}
         
