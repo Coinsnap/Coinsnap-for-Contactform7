@@ -17,7 +17,7 @@ Coinsnap payment plug-in is intended for Worpress form builder Contact Form 7 to
 
 * CF7 Coinsnap Demo Site: https://contactform7.coinsnap.org/
 * Blog Article: https://coinsnap.io/en/coinsnap-for-contact-form-7/
-* WordPress: https://wordpress.org/plugins/coinsnap-for-contactform7/
+* WordPress: https://coinsnap.io/en/coinsnap-for-contact-form-7/
 * GitHub: https://github.com/Coinsnap/Coinsnap-for-Contactform7
 
 # Description #

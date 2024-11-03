@@ -17,7 +17,7 @@ With the Coinsnap Bitcoin-Lightning payment plugin for Contact Form 7 you only n
 
 * Contact Form 7 Coinsnap Demo Site: https://contactform7.coinsnap.org/
 * Blog Article: https://coinsnap.io/en/coinsnap-for-contact-form-7/
-* WordPress: https://wordpress.org/plugins/coinsnap-for-contactform7/
+* WordPress: https://wordpress.org/plugins/coinsnap-for-contact-form-7/
 * GitHub: https://github.com/Coinsnap/Coinsnap-for-Contactform7
 
 
