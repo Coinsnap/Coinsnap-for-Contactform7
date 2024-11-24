@@ -9,9 +9,9 @@
  * Text Domain:     coinsnap-for-contactform7
  * Domain Path:     /languages
  * Requires PHP:    7.4
- * Tested up to:    6.6.2
+ * Tested up to:    6.7.1
  * Requires at least: 6.2
- * CF7 tested up to: 5.9.8
+ * CF7 tested up to: 6.0
  * License:         GPL2
  * License URI:     https://www.gnu.org/licenses/gpl-2.0.html
  *
