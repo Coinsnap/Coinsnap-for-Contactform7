@@ -11,7 +11,7 @@
  * Requires PHP:    7.4
  * Tested up to:    6.7.1
  * Requires at least: 6.2
- * CF7 tested up to: 6.0
+ * CF7 tested up to: 6.0.1
  * License:         GPL2
  * License URI:     https://www.gnu.org/licenses/gpl-2.0.html
  *
@@ -19,8 +19,8 @@
  */
 
 defined( 'ABSPATH' ) || exit;
-define( 'COINSNAP_REFERRAL_CODE', 'D19827' );
-define( 'COINSNAP_VERSION', '1.0.1' );
+if(!defined( 'COINSNAPCF7_REFERRAL_CODE' )){define( 'COINSNAPCF7_REFERRAL_CODE', 'D19827' );}
+if(!defined( 'COINSNAPCF7_VERSION' )){define( 'COINSNAPCF7_VERSION', '1.0.1' );}
 add_action( 'init', array( 'cf7_coinsnap', 'load' ), 5 );
 if(!defined( 'WPCF7_LOAD_JS' )){define( 'WPCF7_LOAD_JS', false );}
 register_activation_hook( __FILE__, "coinsnapcf7_activate" );
@@ -86,7 +86,7 @@ function coinsnapcf7_dependency_notice() {?>
 // Add custom styling.
 function coinsnapcf7_enqueue_admin_styles( $hook ) {
 	// Register the CSS file
-	wp_register_style( 'coinsnapcf7_admin-styles', plugins_url( 'css/coinsnapcf7-styles.css', __FILE__ ), array(), COINSNAP_VERSION );
+	wp_register_style( 'coinsnapcf7_admin-styles', plugins_url( 'css/coinsnapcf7-styles.css', __FILE__ ), array(), COINSNAPCF7_VERSION );
 
 	// Enqueue the CSS file
 	wp_enqueue_style( 'coinsnapcf7_admin-styles' );

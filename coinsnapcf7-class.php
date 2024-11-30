@@ -348,7 +348,7 @@ class CoinsnapCf7 {
 			$buyerEmail,
 			$buyerName,
 			$return_url,
-			'',
+			COINSNAPCF7_REFERRAL_CODE,
 			$metadata,
 			$checkoutOptions
 		);
