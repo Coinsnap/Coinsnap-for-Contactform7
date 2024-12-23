@@ -124,7 +124,7 @@ To do this, you need a Coinsnap account first.
 
 ### 2.1 Create your Coinsnap account ###
 
-![Create your Coinsnap account](https://resources.coinsnap.org/products/contactform7/images/screenshot-7.png)
+![Create your Coinsnap account](https://resources.coinsnap.org/products/contactform7/images/screenshot-8.png)
 
 Open your Coinsnap account at https://app.coinsnap.io/register by simply entering your email address and a password of your choice.
 
