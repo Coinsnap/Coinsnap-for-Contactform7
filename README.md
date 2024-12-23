@@ -1,5 +1,5 @@
 # Coinsnap for Contact Form 7-plugin #
-![Image of Coinsnap for Contact Form 7](https://coinsnap.io/wp-content/uploads/2024/03/contactform7-plugin.png)
+![Coinsnap for Contact Form 7](https://resources.coinsnap.org/products/contactform7/images/banner-772x250.png)
 ## Accept Bitcoin and Lightning Payments with Contact Form 7 in Wordpress ##
 
 Contributors: coinsnap
@@ -31,6 +31,8 @@ More information:
 # Enable Bitcoin Lightning payments in Contact Form 7 with Coinsnap #
 
 With Contact Form 7, website owners can create forms with different fields such as name, email, subject, message, etc. and embed them in their pages or posts. It is highly customizable and allows users to change the look and feel of their contact forms.
+
+![Contact Form 7](https://resources.coinsnap.org/products/contactform7/images/screenshot-1.png)
 
 With the Coinsnap for Content Form 7-plugin you can immediately accept Bitcoin Lightning payments on your site. You don’t need your own Lightning node or any other technical requirements.
 
@@ -101,9 +103,13 @@ After successful installation, click “Activate”. Now you are ready to set up
 
 ### 1.1. Install the Coinsnap for Contact Form 7-plugin from Github ###
 
+![Install the Coinsnap for Contact Form 7-plugin from Github](https://resources.coinsnap.org/products/contactform7/images/screenshot-2.jpg)
+
 If you don’t want to install our plugin from WordPress, you can alternatively download the Coinsnap for Contact Form 7-plugin from the Coinsnap Github page and install it via the “Upload Plugin” function:
 
 Navigate to Plugins > Add New Plugin > Upload Plugin and select the zip-archive you’ve downloaded from Github.
+
+![Install the Coinsnap for Contact Form 7-plugin from Github](https://resources.coinsnap.org/products/contactform7/images/screenshot-3.png)
 
 Click “Install Now” and the Coinsnap for Contact Form 7-plugin will be installed in WordPress.
 
@@ -118,6 +124,8 @@ To do this, you need a Coinsnap account first.
 
 ### 2.1 Create your Coinsnap account ###
 
+![Create your Coinsnap account](https://resources.coinsnap.org/products/contactform7/images/screenshot-7.png)
+
 Open your Coinsnap account at https://app.coinsnap.io/register by simply entering your email address and a password of your choice.
 
 If you are using a Lightning Wallet with Lightning Login, then you can also open a Coinsnap account with it.
@@ -126,9 +134,13 @@ If you are using a Lightning Wallet with Lightning Login, then you can also open
 
 You will receive an email to the submitted email address with a confirmation link, which you have to confirm. If you do not find the email, please check your spam folder.
 
+![Confirm your email address](https://resources.coinsnap.org/products/contactform7/images/screenshot-9.png)
+
 Then, please log in to the Coinsnap backend with the appropriate credentials.
 
 ### 2.3. Connect your website with Coinsnap ###
+
+![Connect your website](https://resources.coinsnap.org/products/contactform7/images/screenshot-10.png)
 
 After you signed up, you will be asked to provide two pieces of information:
 
@@ -146,6 +158,8 @@ To make it all work, you need to connect your plugin with your Coinsnap account.
 
 ### 3.1. Coinsnap for Contact Form 7 Settings ###
 
+![Coinsnap for Contact Form 7 Settings](https://resources.coinsnap.org/products/contactform7/images/screenshot-4.png)
+
 * Navigate to Contact > add new. Below the “Enter title here” field select the “Coinsnap” tab on the left.
 * Click “Enable Coinsnap on his form”. 
 * Choose your preferred currency.
@@ -157,12 +171,16 @@ To make it all work, you need to connect your plugin with your Coinsnap account.
 
 Just follow the instructions under the fields you just filled out and create your first form with Bitcoin Lightning payment.
 
+![Create your first Contact Form 7 form](https://resources.coinsnap.org/products/contactform7/images/screenshot-5.png)
+
 
 ### 4. Test payment ###
 
 ### 4.1. Test payment in Contact Form 7 ###
 
 If you want to see how Bitcoin Lightning payment works in a Contact Form 7 form, just go to our [demo store](https://contactform7.coinsnap.org/) and make a donation, a download, a purchase or a booking! 
+
+![Test payment in Contact Form 7](https://resources.coinsnap.org/products/contactform7/images/screenshot-6.png)
 
 As soon as you click on “buy now”, you will see the Bitcoin Lightning payment page:
 
@@ -171,3 +189,5 @@ As soon as you click on “buy now”, you will see the Bitcoin Lightning paymen
 This payment page shows your customer the amount payable in SATS. Click on “view Details” for further information. 
 
 Then you see the QR code. Hold your wallet above it and the amount of SATS displayed above will be transferred from your wallet to the Coinsnap wallet as soon as you click the button “pay”.
+
+![QR code](https://resources.coinsnap.org/products/contactform7/images/screenshot-7.png)
