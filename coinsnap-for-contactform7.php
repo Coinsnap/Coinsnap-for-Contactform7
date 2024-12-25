@@ -3,7 +3,7 @@
  * Plugin Name:     Coinsnap for Contact Form 7-plugin
  * Plugin URI:      https://www.coinsnap.io
  * Description:     Provides a <a href="https://coinsnap.io">Coinsnap</a>  - Bitcoin + Lightning Payment Gateway for Contact Form 7.
- * Version:         1.0.2
+ * Version:         1.0.3
  * Author:          Coinsnap
  * Author URI:      https://coinsnap.io/
  * Text Domain:     coinsnap-for-contactform7
@@ -20,7 +20,7 @@
 
 defined( 'ABSPATH' ) || exit;
 if(!defined( 'COINSNAPCF7_REFERRAL_CODE' )){define( 'COINSNAPCF7_REFERRAL_CODE', 'D19827' );}
-if(!defined( 'COINSNAPCF7_VERSION' )){define( 'COINSNAPCF7_VERSION', '1.0.2' );}
+if(!defined( 'COINSNAPCF7_VERSION' )){define( 'COINSNAPCF7_VERSION', '1.0.3' );}
 add_action( 'init', array( 'cf7_coinsnap', 'load' ), 5 );
 if(!defined( 'WPCF7_LOAD_JS' )){define( 'WPCF7_LOAD_JS', false );}
 register_activation_hook( __FILE__, "coinsnapcf7_activate" );

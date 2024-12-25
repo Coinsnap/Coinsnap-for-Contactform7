@@ -4,7 +4,7 @@ Tags:  Coinsnap, Contact Form 7, Bitcoin, Lightning
 Requires at least: 6.2
 Requires PHP: 7.4
 Tested up to: 6.7.1
-Stable tag: 1.0.2
+Stable tag: 1.0.3
 License: GPLv2
 License URI: http://www.gnu.org/licenses/gpl-2.0.html
 
@@ -189,17 +189,18 @@ Plugin's page on Coinsnap website: https://coinsnap.io/en/
 6. Contact Form 7 form interface
 7. QR code on the Bitcoin payment page
   
-# Changelog #
+== Changelog ==
 
 = 1.0.0 :: 2024-07-08 =
 * Initial release. 
 
 = 1.0.1 :: 2024-11-10 =
-* Plugin description and installation instruction update
-* Coinsnap connection exception handler in WordPress PHP library update
-* Connection check method call update
+* Plugin description and installation instruction update.
+* Coinsnap connection exception handler in WordPress PHP library update.
+* Connection check method call update.
 
 = 1.0.2 :: 2024-12-10 =
 * Fixed bug in ConnectException handler.
 
-
+= 1.0.3 :: 2024-12-25 =
+* Fixed mismatch variables types bug in ConnectException function call.
