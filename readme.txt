@@ -1,14 +1,12 @@
-=== Coinsnap for Contact Form 7-plugin ===
+=== Bitcoin Payment for Contact Form 7 ===
 Contributors: coinsnap
 Tags:  Coinsnap, Contact Form 7, Bitcoin, Lightning
-Requires at least: 6.2
-Requires PHP: 7.4
-Tested up to: 6.7.1
-Stable tag: 1.0.3
+Tested up to: 6.7
+Stable tag: 1.0.4
 License: GPLv2
 License URI: http://www.gnu.org/licenses/gpl-2.0.html
 
-The Coinsnap for Contact Form 7-plugin allows you to accept Bitcoin Lightning payments from within any forms you created with Contact Form 7.
+With this Bitcoin payment plugin for Contact Form 7 you can now offer products, downloads, bookings or get donations in Bitcoin right in your forms!
 
 == Description ==
 
@@ -204,3 +202,6 @@ Plugin's page on Coinsnap website: https://coinsnap.io/en/
 
 = 1.0.3 :: 2024-12-25 =
 * Fixed mismatch variables types bug in ConnectException function call.
+
+= 1.0.4 :: 2025-02-09 =
+* Update: Coinsnap server connection check indication in backend marks as "Contact Form 7".

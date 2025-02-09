@@ -7,7 +7,7 @@ Tags:  Coinsnap, Contact Form 7, Bitcoin, Lightning
 Requires at least: 6.2
 Requires PHP: 7.4
 Tested up to: 6.7.1
-Stable tag: 1.0.3
+Stable tag: 1.0.4
 License: GPLv2
 License URI: http://www.gnu.org/licenses/gpl-2.0.html
 
@@ -191,3 +191,24 @@ This payment page shows your customer the amount payable in SATS. Click on “vi
 Then you see the QR code. Hold your wallet above it and the amount of SATS displayed above will be transferred from your wallet to the Coinsnap wallet as soon as you click the button “pay”.
 
 ![QR code](https://resources.coinsnap.org/products/contactform7/images/screenshot-7.png)
+
+
+# Changelog
+
+##### 1.0.0 :: 2024-07-08
+* Initial release. 
+
+##### 1.0.1 :: 2024-11-10 =
+* Plugin description and installation instruction update.
+* Coinsnap connection exception handler in WordPress PHP library update.
+* Connection check method call update.
+
+##### 1.0.2 :: 2024-12-10 =
+* Fixed bug in ConnectException handler.
+
+##### 1.0.3 :: 2024-12-25 =
+* Fixed mismatch variables types bug in ConnectException function call.
+
+##### 1.0.4 :: 2025-02-09 =
+* Update: Coinsnap server connection check indication in backend marks as "Contact Form 7".
+
