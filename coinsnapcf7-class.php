@@ -205,7 +205,7 @@ class CoinsnapCf7 {
 
 		$coinsnap_currency = get_post_meta( $post_id, "_cf7_coinsnap_currency", true );
 		if ( empty( $coinsnap_currency ) ) {
-			$coinsnap_currency = 'USD';
+			$coinsnap_currency = 'EUR';
 		}
 
 		$checked = ( $enable == "1" ) ? "CHECKED" : '';
