@@ -25,22 +25,22 @@ class CoinsnapCf7 {
             if(isset($webhook_status) && !empty($webhook_status)){
                 if($webhook_status === 'exists'){
                     echo '<div class="notice notice-info"><p>';
-                    esc_html_e('Contact Form 7: Webhook already exists, skipping webhook creation', 'coinsnap-for-contactform7');
+                    esc_html_e('Contact Form 7: Webhook already exists, skipping webhook creation', 'coinsnap-for-contact-form-7');
                     echo '</p></div>';
                 }
                 elseif($webhook_status === 'failed'){
                     echo '<div class="notice notice-error"><p>';
-                    esc_html_e('Contact Form 7: Unable to create webhook on Coinsnap Server', 'coinsnap-for-contactform7');
+                    esc_html_e('Contact Form 7: Unable to create webhook on Coinsnap Server', 'coinsnap-for-contact-form-7');
                     echo '</p></div>';
                 }
                 elseif($webhook_status === 'registered'){
                     echo '<div class="notice notice-success"><p>';
-                    esc_html_e('Contact Form 7: Successfully registered webhook on Coinsnap Server', 'coinsnap-for-contactform7');
+                    esc_html_e('Contact Form 7: Successfully registered webhook on Coinsnap Server', 'coinsnap-for-contact-form-7');
                     echo '</p></div>';
                 }
                 elseif($webhook_status === 'noconnection'){
                     echo '<div class="notice notice-error"><p>';
-                    esc_html_e('Contact Form 7: Coinsnap connection error', 'coinsnap-for-contactform7');
+                    esc_html_e('Contact Form 7: Coinsnap connection error', 'coinsnap-for-contact-form-7');
                     echo '</p></div>';
                 }
                 update_post_meta( $post_id, "_cf7_coinsnap_webhook", '' );
@@ -57,7 +57,7 @@ class CoinsnapCf7 {
 
 
 	function coinsnapcf7_admin_menu() {
-		add_submenu_page( 'wpcf7', esc_html__( 'Coinsnap Payments', 'coinsnap-for-contactform7' ), esc_html__( 'Coinsnap Payments', 'coinsnap-for-contactform7' ), 'wpcf7_edit_contact_forms', 'coinsnapcf7_admin_list_trans', array(
+		add_submenu_page( 'wpcf7', esc_html__( 'Coinsnap Payments', 'coinsnap-for-contact-form-7' ), esc_html__( 'Coinsnap Payments', 'coinsnap-for-contact-form-7' ), 'wpcf7_edit_contact_forms', 'coinsnapcf7_admin_list_trans', array(
 			$this,
 			'coinsnapcf7_admin_list_trans'
 		) );
@@ -65,7 +65,7 @@ class CoinsnapCf7 {
 
 	function coinsnapcf7_admin_list_trans() {
 		if ( ! current_user_can( "manage_options" ) ) {
-			wp_die( esc_html__( "You do not have sufficient permissions to access this page.", "coinsnap-for-contactform7" ) );
+			wp_die( esc_html__( "You do not have sufficient permissions to access this page.", "coinsnap-for-contact-form-7" ) );
 		}
 		global $wpdb;
 		$pagenum      = ( filter_input(INPUT_GET,'pagenum',FILTER_VALIDATE_INT) !== null ) ? absint( filter_input(INPUT_GET,'pagenum',FILTER_VALIDATE_INT) ) : 1;
@@ -126,8 +126,8 @@ class CoinsnapCf7 {
 		$page_links = paginate_links( array(
 			'base'      => add_query_arg( 'pagenum', '%#%' ),
 			'format'    => '',
-			'prev_text' => __( '&laquo;', 'coinsnap-for-contactform7' ),
-			'next_text' => __( '&raquo;', 'coinsnap-for-contactform7' ),
+			'prev_text' => __( '&laquo;', 'coinsnap-for-contact-form-7' ),
+			'next_text' => __( '&raquo;', 'coinsnap-for-contact-form-7' ),
 			'total'     => $num_of_pages,
 			'current'   => $pagenum
 		) );
@@ -184,7 +184,7 @@ class CoinsnapCf7 {
 	function coinsnapcf7_editor_panels( $panels ) {
 		$new_page = array(
 			'coinsnap' => array(
-				'title'    => __( 'Coinsnap', 'coinsnap-for-contactform7' ),
+				'title'    => __( 'Coinsnap', 'coinsnap-for-contact-form-7' ),
 				'callback' => array( $this, 'coinsnapcf7_admin_after_additional_settings' )
 			)
 		);
@@ -305,7 +305,7 @@ class CoinsnapCf7 {
 		$webhook_url     = $this->get_webhook_url();
                 if ( ! $this->webhookExists( $this->getStoreId(), $this->getApiKey(), $webhook_url ) ) {
 			if ( ! $this->registerWebhook( $this->getStoreId(), $this->getApiKey(), $webhook_url ) ) {
-				echo( esc_html__( 'unable to set Webhook url.', 'coinsnap-for-contactform7' ) );
+				echo( esc_html__( 'unable to set Webhook url.', 'coinsnap-for-contact-form-7' ) );
 				exit;
 			}
 		}

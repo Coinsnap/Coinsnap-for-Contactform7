@@ -6,12 +6,12 @@
  * Version:         1.0.4
  * Author:          Coinsnap
  * Author URI:      https://coinsnap.io/
- * Text Domain:     coinsnap-for-contactform7
+ * Text Domain:     coinsnap-for-contact-form-7
  * Domain Path:     /languages
  * Requires PHP:    7.4
  * Tested up to:    6.7.1
  * Requires at least: 6.2
- * CF7 tested up to: 6.0.3
+ * CF7 tested up to: 6.0.4
  * License:         GPL2
  * License URI:     https://www.gnu.org/licenses/gpl-2.0.html
  *
@@ -79,7 +79,7 @@ add_action('admin_init', 'coinsnapcf7_check_contact_form_7_dependency');
 
 function coinsnapcf7_dependency_notice() {?>
   <div class="notice notice-error">
-    <p><?php esc_html_e('Coinsnap for Contact Form 7 plugin requires Contact Form 7 to be installed and activated.', 'coinsnap-for-contactform7'); ?></p>
+    <p><?php esc_html_e('Coinsnap for Contact Form 7 plugin requires Contact Form 7 to be installed and activated.', 'coinsnap-for-contact-form-7'); ?></p>
   </div><?php
 }
 
