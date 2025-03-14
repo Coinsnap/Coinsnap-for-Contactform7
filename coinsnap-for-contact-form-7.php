@@ -1,7 +1,7 @@
 <?php
 /**
  * Plugin Name:     Bitcoin Payment for Contact Form 7
- * Plugin URI:      https://www.coinsnap.io
+ * Plugin URI:      https://coinsnap.io/coinsnap-for-contact-form-7-plugin/
  * Description:     With this Bitcoin payment plugin for Contact Form 7 you can now offer products, downloads, bookings or get donations in Bitcoin right in your forms!
  * Version:         1.0.4
  * Author:          Coinsnap
@@ -9,7 +9,8 @@
  * Text Domain:     coinsnap-for-contact-form-7
  * Domain Path:     /languages
  * Requires PHP:    7.4
- * Tested up to:    6.7.1
+ * Tested up to:    6.7
+ * Requires Plugins: contact-form-7
  * Requires at least: 6.2
  * CF7 tested up to: 6.0.4
  * License:         GPL2

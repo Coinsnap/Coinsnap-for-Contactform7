@@ -61,7 +61,7 @@ Coinsnap’s Bitcoin payment plugin for Contact Form 7 makes it amazingly simple
 
 * Contact Form 7 Coinsnap Demo Site: [https://contactform7.coinsnap.org/](https://contactform7.coinsnap.org/)
 * Blog Article: [https://coinsnap.io/coinsnap-for-contact-form-7/](https://coinsnap.io/coinsnap-for-contact-form-7/)
-* WordPress: [https://coinsnap.io/coinsnap-for-contact-form-7/](https://coinsnap.io/coinsnap-for-contact-form-7/)
+* WordPress: [https://wordpress.org/plugins/coinsnap-for-contact-form-7/](https://wordpress.org/plugins/coinsnap-for-contact-form-7/)
 * GitHub: [https://github.com/Coinsnap/Coinsnap-for-Contactform7](https://github.com/Coinsnap/Coinsnap-for-Contactform7)
 
 
