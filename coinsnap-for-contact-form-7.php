@@ -9,10 +9,10 @@
  * Text Domain:     coinsnap-for-contact-form-7
  * Domain Path:     /languages
  * Requires PHP:    7.4
- * Tested up to:    6.7
+ * Tested up to:    6.8
  * Requires Plugins: contact-form-7
  * Requires at least: 6.2
- * CF7 tested up to: 6.0.4
+ * CF7 tested up to: 6.0.6
  * License:         GPL2
  * License URI:     https://www.gnu.org/licenses/gpl-2.0.html
  *
@@ -21,7 +21,10 @@
 
 defined( 'ABSPATH' ) || exit;
 if(!defined( 'COINSNAPCF7_REFERRAL_CODE' )){define( 'COINSNAPCF7_REFERRAL_CODE', 'D19827' );}
-if(!defined( 'COINSNAPCF7_VERSION' )){define( 'COINSNAPCF7_VERSION', '1.0.4' );}
+if(!defined( 'COINSNAPCF7_VERSION' )){define( 'COINSNAPCF7_VERSION', '1.1' );}
+if(!defined('COINSNAP_CURRENCIES')){define( 'COINSNAP_CURRENCIES', array("EUR","USD","SATS","BTC","CAD","JPY","GBP","CHF","RUB") );}
+
+
 add_action( 'init', array( 'cf7_coinsnap', 'load' ), 5 );
 if(!defined( 'WPCF7_LOAD_JS' )){define( 'WPCF7_LOAD_JS', false );}
 register_activation_hook( __FILE__, "coinsnapcf7_activate" );
@@ -109,10 +112,6 @@ function coinsnapcf7_check_criteria_and_show_warning() {
 		echo '</div>';
 	}
 }
-
-
-
-
 
 // Hook into the 'wpcf7_save_contact_form' action
 add_action( 'wpcf7_save_contact_form', 'coinsnapcf7_check_field_existence', 10, 1 );
