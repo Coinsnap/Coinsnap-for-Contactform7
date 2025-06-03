@@ -7,7 +7,7 @@
 * Requires at least: 6.2
 * Requires PHP: 7.4
 * Tested up to: 6.8
-* Stable tag: 1.0.4
+* Stable tag: 1.2.0
 * License: GPLv2
 * License URI: http://www.gnu.org/licenses/gpl-2.0.html
 
@@ -162,17 +162,29 @@ From here on you can follow 1.1 to 1.3 and you will be set to sell for Bitcoin i
 ##### 1.0.0 :: 2024-07-08
 * Initial release. 
 
-##### 1.0.1 :: 2024-11-10 =
+##### 1.0.1 :: 2024-11-10
 * Plugin description and installation instruction update.
 * Coinsnap connection exception handler in WordPress PHP library update.
 * Connection check method call update.
 
-##### 1.0.2 :: 2024-12-10 =
+##### 1.0.2 :: 2024-12-10
 * Fixed bug in ConnectException handler.
 
-##### 1.0.3 :: 2024-12-25 =
+##### 1.0.3 :: 2024-12-25
 * Fixed mismatch variables types bug in ConnectException function call.
 
-##### 1.0.4 :: 2025-02-09 =
+##### 1.0.4 :: 2025-02-09
 * Update: Coinsnap server connection check indication in backend marks as "Contact Form 7".
 
+##### 1.1.0 :: 2025-04-17
+* Update: Added option "Redirect after payment automatically".
+* Update: Prevented redirect to payment gateway if payment amount is less than 1 SAT or currency in not supported by Coinsnap.
+
+##### 1.2.0 :: 2025-06-03
+* Update: Coinsnap Wordpress library.
+* Update: BTCPay server added as a Bitcoin payment gateway
+* Update: Prevented redirect to BTCPay server if payment amount is less than 0.000005869 BTC (0.50 EUR) for onchain payments, 0.000001 BTC (1 SAT) for Lightning payment or currency is not supported.
+* Update: BTCPay setup wizard is added in BTCPay server settings.
+* Update: Minimum order amount is added to connection status notice.
+* Compatibility with Coinsnap Form 7 Plugin 6.0.6 is tested.
+* Compatibility with Wordpress 6.8 is tested.

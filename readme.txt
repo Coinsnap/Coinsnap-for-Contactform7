@@ -2,7 +2,7 @@
 Contributors: coinsnap
 Tags:  Coinsnap, Contact Form 7, Bitcoin, Lightning
 Tested up to: 6.8
-Stable tag: 1.0.4
+Stable tag: 1.2.0
 License: GPLv2
 License URI: http://www.gnu.org/licenses/gpl-2.0.html
 
@@ -178,3 +178,16 @@ Plugin's page on Coinsnap website: https://coinsnap.io/en/
 
 = 1.0.4 :: 2025-02-09 =
 * Update: Coinsnap server connection check indication in backend marks as "Contact Form 7".
+
+= 1.1.0 :: 2025-04-17 =
+* Update: Added option "Redirect after payment automatically".
+* Update: Prevented redirect to payment gateway if payment amount is less than 1 SAT or currency in not supported by Coinsnap.
+
+= 1.2.0 :: 2025-06-03 =
+* Update: Coinsnap Wordpress library.
+* Update: BTCPay server added as a Bitcoin payment gateway
+* Update: Prevented redirect to BTCPay server if payment amount is less than 0.000005869 BTC (0.50 EUR) for onchain payments, 0.000001 BTC (1 SAT) for Lightning payment or currency is not supported.
+* Update: BTCPay setup wizard is added in BTCPay server settings.
+* Update: Minimum order amount is added to connection status notice.
+* Compatibility with Coinsnap Form 7 Plugin 6.0.6 is tested.
+* Compatibility with Wordpress 6.8 is tested.

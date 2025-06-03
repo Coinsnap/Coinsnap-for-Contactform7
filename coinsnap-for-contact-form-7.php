@@ -3,7 +3,7 @@
  * Plugin Name:     Bitcoin Payment for Contact Form 7
  * Plugin URI:      https://coinsnap.io/coinsnap-for-contact-form-7-plugin/
  * Description:     With this Bitcoin payment plugin for Contact Form 7 you can now offer products, downloads, bookings or get donations in Bitcoin right in your forms!
- * Version:         1.0.4
+ * Version:         1.2.0
  * Author:          Coinsnap
  * Author URI:      https://coinsnap.io/
  * Text Domain:     coinsnap-for-contact-form-7
@@ -20,10 +20,13 @@
  */
 
 defined( 'ABSPATH' ) || exit;
-if(!defined( 'COINSNAPCF7_REFERRAL_CODE' )){define( 'COINSNAPCF7_REFERRAL_CODE', 'D19827' );}
-if(!defined( 'COINSNAPCF7_VERSION' )){define( 'COINSNAPCF7_VERSION', '1.1' );}
-if(!defined('COINSNAP_CURRENCIES')){define( 'COINSNAP_CURRENCIES', array("EUR","USD","SATS","BTC","CAD","JPY","GBP","CHF","RUB") );}
 
+if(!defined('COINSNAPCF7_REFERRAL_CODE' )){define( 'COINSNAPCF7_REFERRAL_CODE', 'D19827' );}
+if(!defined('COINSNAPCF7_VERSION' )){define( 'COINSNAPCF7_VERSION', '1.2.0' );}
+if(!defined('COINSNAP_SERVER_URL')){define( 'COINSNAP_SERVER_URL', 'https://app.coinsnap.io' );}
+if(!defined('COINSNAP_API_PATH')){define( 'COINSNAP_API_PATH', '/api/v1/');}
+if(!defined('COINSNAP_SERVER_PATH')){define( 'COINSNAP_SERVER_PATH', 'stores' );}
+if(!defined('COINSNAP_CURRENCIES')){define( 'COINSNAP_CURRENCIES', array("EUR","USD","SATS","BTC","CAD","JPY","GBP","CHF","RUB") );}
 
 add_action( 'init', array( 'cf7_coinsnap', 'load' ), 5 );
 if(!defined( 'WPCF7_LOAD_JS' )){define( 'WPCF7_LOAD_JS', false );}
@@ -87,16 +90,25 @@ function coinsnapcf7_dependency_notice() {?>
   </div><?php
 }
 
-// Add custom styling.
-function coinsnapcf7_enqueue_admin_styles( $hook ) {
-	// Register the CSS file
-	wp_register_style( 'coinsnapcf7_admin-styles', plugins_url( 'css/coinsnapcf7-styles.css', __FILE__ ), array(), COINSNAPCF7_VERSION );
 
-	// Enqueue the CSS file
-	wp_enqueue_style( 'coinsnapcf7_admin-styles' );
-}
+add_action('init', function() {
+    
+//  Session launcher
+    if ( ! session_id() ) {
+        session_start();
+    }
+    
+// Setting up and handling custom endpoint for api key redirect from BTCPay Server.
+    add_rewrite_endpoint('btcpay-settings-callback', EP_ROOT);
+});
 
-add_action( 'admin_enqueue_scripts', 'coinsnapcf7_enqueue_admin_styles' );
+// To be able to use the endpoint without appended url segments we need to do this.
+add_filter('request', function($vars) {
+    if (isset($vars['btcpay-settings-callback'])) {
+        $vars['btcpay-settings-callback'] = true;
+    }
+    return $vars;
+});
 
 // Hook into the 'admin_notices' action
 add_action( 'admin_notices', 'coinsnapcf7_check_criteria_and_show_warning', 10, 1 );
@@ -108,7 +120,7 @@ function coinsnapcf7_check_criteria_and_show_warning() {
 
 	if ( get_option( 'coinsnapcf7_check_show_warning' ) ) {
 		echo '<div class="notice notice-error is-dismissible">';
-		echo '<p><strong>Warning:</strong> You must include `cs_amount` field in the Coinsnap form in order to successfully connect to your Coinsnap account.</p>';
+		echo '<p>'. esc_html__('<strong>Warning:</strong> You must include `cs_amount` field in the Coinsnap form in order to successfully connect to your Coinsnap account.','coinsnap-for-contact-form-7').'</p>';
 		echo '</div>';
 	}
 }
