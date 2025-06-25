@@ -4,6 +4,7 @@ if (!defined( 'ABSPATH' )){
 }
 
 use Coinsnap\Util\Notice;
+use Coinsnap\Client\Webhook;
 
 class CoinsnapCf7 {
     private static $_instance = null;
@@ -24,11 +25,11 @@ class CoinsnapCf7 {
         if (is_admin()) {
             add_action( 'wpcf7_admin_notices', array( $this, 'coinsnapcf7_webhook'));
             add_action( 'admin_enqueue_scripts', [$this, 'enqueueAdminScripts'] );
-            add_action( 'wp_ajax_coinsnap_connection_handler', [$this, 'coinsnapConnectionHandler'] );
-            add_action( 'wp_ajax_btcpay_server_apiurl_handler', [$this, 'btcpayApiUrlHandler']);
+            add_action( 'wp_ajax_cf7_coinsnap_connection_handler', [$this, 'coinsnapConnectionHandler'] );
+            add_action( 'wp_ajax_cf7_btcpay_server_apiurl_handler', [$this, 'btcpayApiUrlHandler']);
         }
         
-        // Adding template redirect handling for btcpay-settings-callback.
+        // Adding template redirect handling for coinsnap-for-cf7-btcpay-settings-callback.
         add_action( 'template_redirect', function(){
     
             global $wp_query;
@@ -36,8 +37,8 @@ class CoinsnapCf7 {
             
             $post_id = $this->_postid = filter_input(INPUT_GET,'cf7_post',FILTER_SANITIZE_STRING);
 
-            // Only continue on a btcpay-settings-callback request.    
-            if (!isset( $wp_query->query_vars['btcpay-settings-callback'])) {
+            // Only continue on a coinsnap-for-cf7-btcpay-settings-callback request.    
+            if (!isset( $wp_query->query_vars['coinsnap-for-cf7-btcpay-settings-callback'])) {
                 return;
             }
 
@@ -50,7 +51,7 @@ class CoinsnapCf7 {
 
             $client = new \Coinsnap\Client\Store($btcpay_server_url,$btcpay_api_key);
             if (count($client->getStores()) < 1) {
-                $messageAbort = __('Error on verifiying redirected API Key with stored BTCPay Server url. Aborting API wizard. Please try again or continue with manual setup.', 'coinsnap-for-contact-form-7');
+                $messageAbort = __('Error on verifying redirected API Key with stored BTCPay Server url. Aborting API wizard. Please try again or continue with manual setup.', 'coinsnap-for-contact-form-7');
                 $notice->addNotice('error', $messageAbort);
                 wp_redirect($CoinsnapBTCPaySettingsUrl);
             }
@@ -78,7 +79,7 @@ class CoinsnapCf7 {
                     $notice->addNotice('success', __('Successfully received api key and store id from BTCPay Server API. Please finish setup by saving this settings form.', 'coinsnap-for-contact-form-7'));
 
                     // Register a webhook.
-                    if ($this->registerWebhook( $apiData->getStoreID(), $apiData->getApiKey(), $this->get_webhook_url())) {
+                    if ($this->registerWebhook( $btcpay_server_url, $apiData->getApiKey(), $apiData->getStoreID())) {
                         $messageWebhookSuccess = __( 'Successfully registered a new webhook on BTCPay Server.', 'coinsnap-for-contact-form-7' );
                         $notice->addNotice('success', $messageWebhookSuccess);
                     }
@@ -175,17 +176,17 @@ class CoinsnapCf7 {
                     $this->sendJsonResponse($response);
                 }
                 
-                $webhookExists = $this->webhookExists($this->getStoreId(), $this->getApiKey(), $this->get_webhook_url());
+                $webhookExists = $this->webhookExists( $this->getApiUrl(), $this->getApiKey(), $this->getStoreId());
 
                 if($webhookExists) {
                     $response = ['result' => true,'message' => $_message_connected.' ('.$connectionData.')'];
                     $this->sendJsonResponse($response);
                 }
 
-                $webhook = $this->registerWebhook( $this->getStoreId(), $this->getApiKey(), $this->get_webhook_url());
+                $webhook = $this->registerWebhook( $this->getApiUrl(), $this->getApiKey(), $this->getStoreId());
                 $response['result'] = (bool)$webhook;
                 $response['message'] = $webhook ? $_message_connected.' ('.$connectionData.')' : $_message_disconnected.' (Webhook)';
-                $response['display'] = get_option('coinsnap_connection_status_display');
+                //$response['display'] = get_option('coinsnap_connection_status_display');
             }
             catch (\Throwable $e) {
                 //$response['message'] = $e->getMessage();
@@ -207,7 +208,11 @@ class CoinsnapCf7 {
 	// Enqueue the CSS file
 	wp_enqueue_style( 'coinsnap-admin-styles' );
         //  Enqueue admin fileds handler script
-        wp_enqueue_script('coinsnap-admin-fields',plugins_url('assets/js/adminFields.js', __FILE__ ),[ 'jquery' ],COINSNAPCF7_VERSION,true);
+        
+        if('wpcf7' === filter_input(INPUT_GET,'page',FILTER_SANITIZE_FULL_SPECIAL_CHARS) && filter_input(INPUT_GET,'post',FILTER_VALIDATE_INT) > 0){
+            wp_enqueue_script('coinsnap-admin-fields',plugins_url('assets/js/adminFields.js', __FILE__ ),[ 'jquery' ],COINSNAPCF7_VERSION,true);
+        }
+        
         wp_enqueue_script('coinsnap-connection-check',plugin_dir_url( __FILE__ ) . 'assets/js/connectionCheck.js',[ 'jquery' ],COINSNAPCF7_VERSION,true);
         wp_localize_script('coinsnap-connection-check', 'coinsnap_ajax', array(
             'ajax_url' => admin_url('admin-ajax.php'),
@@ -252,7 +257,7 @@ class CoinsnapCf7 {
                     'ContactForm7',
                     true,
                     true,
-                    home_url('?btcpay-settings-callback&cf7_post='.$post_id),
+                    home_url('?coinsnap-for-cf7-btcpay-settings-callback&cf7_post='.$post_id),
                     null
 		);
 
@@ -270,14 +275,14 @@ class CoinsnapCf7 {
         wp_send_json_error("Error processing Ajax request.");
     }
         
-        /**
+    /**
         * Method checks if Coinsnap payment is enabled and 
         * payment should be before e-mail submission. 
         * If true, redirects to payment, otherwise - skips payment.
         *
         * @param WPCF7_ContactForm $contact_form The Contact Form 7 form object.
-        */
-        public function coinsnap_payment_before($cf7){
+    */
+    public function coinsnap_payment_before($cf7){
             $post_id = $cf7->id();
             $enable = get_post_meta( $post_id, "_cf7_coinsnap_enable", true );
             $paymentFirst = get_post_meta( $post_id, "_cf7_coinsnap_paymentfirst", true );
@@ -285,16 +290,16 @@ class CoinsnapCf7 {
             if($paymentFirst && $enable){
                 $this->coinsnap_redirect_payment($cf7);
             }
-        }
+    }
         
-        /**
+    /**
         * Method checks if Coinsnap payment is enabled and 
         * payment should be after e-mail submission. 
         * If true, redirects to payment, otherwise - returns false.
         *
         * @param WPCF7_ContactForm $contact_form The Contact Form 7 form object.
-        */
-        public function coinsnap_payment_after($cf7){
+    */
+    public function coinsnap_payment_after($cf7){
             $post_id = $cf7->id();
             $enable = get_post_meta( $post_id, "_cf7_coinsnap_enable", true );
             $paymentFirst = get_post_meta( $post_id, "_cf7_coinsnap_paymentfirst", true );
@@ -305,9 +310,9 @@ class CoinsnapCf7 {
             else {
                 return false;
             }
-        }
+    }
         
-        function coinsnapcf7_amount_validation( $amount, $currency ) {
+    function coinsnapcf7_amount_validation( $amount, $currency ) {
             $client =new \Coinsnap\Client\Invoice($this->getApiUrl(), $this->getApiKey());
                     
             $_provider = $this->get_payment_provider();
@@ -346,9 +351,9 @@ class CoinsnapCf7 {
             }
             return $checkInvoice;
                     
-        }
+    }
   
-        function coinsnapcf7_payment_validation( $result, $tags ) {
+    function coinsnapcf7_payment_validation( $result, $tags ) {
             
             $post_id = sanitize_text_field( filter_input(INPUT_POST,'_wpcf7',FILTER_VALIDATE_INT) );
             $this->_postid = $post_id;
@@ -389,74 +394,42 @@ class CoinsnapCf7 {
                 $result->invalidate( $tag_submit, $errorMessage);
             }
             return $result;
-        }
+    }
         
-        
-        public function coinsnapcf7_webhook($cf7){
+    public function coinsnapcf7_webhook($cf7){
             
             $notices = new Notice(); 
             $notices->showNotices();
-            
-            /*
-            $post_id = sanitize_text_field( filter_input(INPUT_GET,'post',FILTER_VALIDATE_INT) );
-            
-            $webhook_status = get_post_meta($post_id , "_cf7_coinsnap_webhook", true );
-            if(isset($webhook_status) && !empty($webhook_status)){
-                if($webhook_status === 'exists'){
-                    echo '<div class="notice notice-info"><p>';
-                    esc_html_e('Contact Form 7: Webhook already exists, skipping webhook creation', 'coinsnap-for-contact-form-7');
-                    echo '</p></div>';
-                }
-                elseif($webhook_status === 'failed'){
-                    echo '<div class="notice notice-error"><p>';
-                    esc_html_e('Contact Form 7: Unable to create webhook on Coinsnap Server', 'coinsnap-for-contact-form-7');
-                    echo '</p></div>';
-                }
-                elseif($webhook_status === 'registered'){
-                    echo '<div class="notice notice-success"><p>';
-                    esc_html_e('Contact Form 7: Successfully registered webhook on Coinsnap Server', 'coinsnap-for-contact-form-7');
-                    echo '</p></div>';
-                }
-                elseif($webhook_status === 'noconnection'){
-                    echo '<div class="notice notice-error"><p>';
-                    esc_html_e('Contact Form 7: Coinsnap connection error', 'coinsnap-for-contact-form-7');
-                    echo '</p></div>';
-                }
-                update_post_meta( $post_id, "_cf7_coinsnap_webhook", '' );
-            }*/
+    }
+
+    public static function get_instance() {
+        if ( self::$_instance == null ) {
+            self::$_instance = new CoinsnapCf7();
+        }
+        return self::$_instance;
+    }
+
+    function coinsnapcf7_admin_menu() {
+        add_submenu_page( 'wpcf7', esc_html__( 'Coinsnap Payments', 'coinsnap-for-contact-form-7' ), esc_html__( 'Coinsnap Payments', 'coinsnap-for-contact-form-7' ), 'wpcf7_edit_contact_forms', 'coinsnapcf7_admin_list_trans', array($this,'coinsnapcf7_admin_list_trans') );
+    }
+
+    function coinsnapcf7_admin_list_trans() {
+        if ( ! current_user_can( "manage_options" ) ) {
+            wp_die( esc_html__( "You do not have sufficient permissions to access this page.", "coinsnap-for-contact-form-7" ) );
         }
 
-	public static function get_instance() {
-		if ( self::$_instance == null ) {
-			self::$_instance = new CoinsnapCf7();
-		}
-
-		return self::$_instance;
-	}
-
-
-	function coinsnapcf7_admin_menu() {
-		add_submenu_page( 'wpcf7', esc_html__( 'Coinsnap Payments', 'coinsnap-for-contact-form-7' ), esc_html__( 'Coinsnap Payments', 'coinsnap-for-contact-form-7' ), 'wpcf7_edit_contact_forms', 'coinsnapcf7_admin_list_trans', array(
-			$this,
-			'coinsnapcf7_admin_list_trans'
-		) );
-	}
-
-	function coinsnapcf7_admin_list_trans() {
-		if ( ! current_user_can( "manage_options" ) ) {
-			wp_die( esc_html__( "You do not have sufficient permissions to access this page.", "coinsnap-for-contact-form-7" ) );
-		}
-		global $wpdb;
-		$pagenum      = ( filter_input(INPUT_GET,'pagenum',FILTER_VALIDATE_INT) !== null ) ? absint( filter_input(INPUT_GET,'pagenum',FILTER_VALIDATE_INT) ) : 1;
-		$limit        = 20;
-		$offset       = ( $pagenum - 1 ) * $limit;
-		$table_name   = $this->get_tablename();
-                $transactions = $wpdb->get_results( $wpdb->prepare("SELECT * FROM %i ORDER BY id DESC LIMIT %d, %d", $table_name, $offset, $limit ), ARRAY_A);
+        global $wpdb;
+        $pagenum      = ( filter_input(INPUT_GET,'pagenum',FILTER_VALIDATE_INT) !== null ) ? absint( filter_input(INPUT_GET,'pagenum',FILTER_VALIDATE_INT) ) : 1;
+        $limit        = 20;
+        $offset       = ( $pagenum - 1 ) * $limit;
+        $table_name   = $this->get_tablename();
+        $transactions = $wpdb->get_results( $wpdb->prepare("SELECT * FROM %i ORDER BY id DESC LIMIT %d, %d", $table_name, $offset, $limit ), ARRAY_A);
                 
-		$total        = $wpdb->get_var( $wpdb->prepare("SELECT COUNT(id) FROM %i  ",$table_name) );
-		$num_of_pages = ceil( $total / $limit );
-		$cntx         = 0;
-		echo '<div class="wrap">
+        $total        = $wpdb->get_var( $wpdb->prepare("SELECT COUNT(id) FROM %i  ",$table_name) );
+        $num_of_pages = ceil( $total / $limit );
+        $cntx         = 0;
+	
+        echo '<div class="wrap">
 		<h2>Coinsnap Payments</h2>
 		<table class="widefat post fixed" cellspacing="0">
 			<thead>
@@ -514,35 +487,37 @@ class CoinsnapCf7 {
 			echo esc_html('<center><div class="tablenav"><div class="tablenav-pages"  style="float:none; margin: 1em 0">' . $page_links . '</div></div></center>');
 		}
 		echo '<br><hr></div>';
-	}
+    }
 
-	function coinsnapcf7_save_settings( $cf7 ) {
+    function coinsnapcf7_save_settings( $cf7 ) {
 
-            $post_id = sanitize_text_field( filter_input(INPUT_POST,'post',FILTER_VALIDATE_INT) );
+        $notice = new \Coinsnap\Util\Notice();
+        $post_id = sanitize_text_field( filter_input(INPUT_POST,'post',FILTER_VALIDATE_INT) );
+        $this->_postid = $post_id;
             
-            if ( ! empty( filter_input(INPUT_POST,'coinsnap_enable',FILTER_VALIDATE_INT) ) ) {
-		$coinsnap_enable = sanitize_text_field( filter_input(INPUT_POST,'coinsnap_enable',FILTER_VALIDATE_INT) );
-		update_post_meta( $post_id, "_cf7_coinsnap_enable", $coinsnap_enable );
-            }
-            else {
-                update_post_meta( $post_id, "_cf7_coinsnap_enable", 0 );
-            }
+        if ( !empty( filter_input(INPUT_POST,'coinsnap_enable',FILTER_VALIDATE_INT) ) ) {
+            $coinsnap_enable = sanitize_text_field( filter_input(INPUT_POST,'coinsnap_enable',FILTER_VALIDATE_INT) );
+            update_post_meta( $post_id, "_cf7_coinsnap_enable", $coinsnap_enable );
+        }
+        else {
+            update_post_meta( $post_id, "_cf7_coinsnap_enable", 0 );
+        }
             
-            if ( ! empty( filter_input(INPUT_POST,'coinsnap_autoredirect',FILTER_VALIDATE_INT) ) ) {
-		$coinsnap_autoredirect = sanitize_text_field( filter_input(INPUT_POST,'coinsnap_autoredirect',FILTER_VALIDATE_INT) );
-		update_post_meta( $post_id, "_cf7_coinsnap_autoredirect", $coinsnap_autoredirect );
-            }
-            else {
-                update_post_meta( $post_id, "_cf7_coinsnap_autoredirect", 0 );
-            }
+        if ( !empty( filter_input(INPUT_POST,'coinsnap_autoredirect',FILTER_VALIDATE_INT) ) ) {
+            $coinsnap_autoredirect = sanitize_text_field( filter_input(INPUT_POST,'coinsnap_autoredirect',FILTER_VALIDATE_INT) );
+            update_post_meta( $post_id, "_cf7_coinsnap_autoredirect", $coinsnap_autoredirect );
+        }
+        else {
+            update_post_meta( $post_id, "_cf7_coinsnap_autoredirect", 0 );
+        }
             
-            if ( ! empty( filter_input(INPUT_POST,'coinsnap_paymentfirst',FILTER_VALIDATE_INT) ) ) {
-		$coinsnap_paymentfirst = sanitize_text_field( filter_input(INPUT_POST,'coinsnap_paymentfirst',FILTER_VALIDATE_INT) );
-		update_post_meta( $post_id, "_cf7_coinsnap_paymentfirst", 0 ); //$coinsnap_paymentfirst
-            }
-            else {
-                update_post_meta( $post_id, "_cf7_coinsnap_paymentfirst", 0 );
-            }
+        if ( !empty( filter_input(INPUT_POST,'coinsnap_paymentfirst',FILTER_VALIDATE_INT) ) ) {
+            $coinsnap_paymentfirst = sanitize_text_field( filter_input(INPUT_POST,'coinsnap_paymentfirst',FILTER_VALIDATE_INT) );
+            update_post_meta( $post_id, "_cf7_coinsnap_paymentfirst", 0 ); //$coinsnap_paymentfirst
+        }
+        else {
+            update_post_meta( $post_id, "_cf7_coinsnap_paymentfirst", 0 );
+        }
 
             update_post_meta( $post_id, "_cf7_coinsnap_currency", sanitize_text_field( filter_input(INPUT_POST,'coinsnap_currency',FILTER_SANITIZE_FULL_SPECIAL_CHARS) ) );
             
@@ -555,59 +530,55 @@ class CoinsnapCf7 {
             update_post_meta( $post_id, "_cf7_btcpay_store_id", sanitize_text_field( filter_input(INPUT_POST,'btcpay_store_id',FILTER_SANITIZE_FULL_SPECIAL_CHARS) ) );
             update_post_meta( $post_id, "_cf7_btcpay_api_key", sanitize_text_field( filter_input(INPUT_POST,'btcpay_api_key',FILTER_SANITIZE_FULL_SPECIAL_CHARS) ) );
             
-            update_post_meta( $post_id, "_cf7_coinsnap_s_url", sanitize_text_field( filter_input(INPUT_POST,'coinsnap_s_url',FILTER_SANITIZE_FULL_SPECIAL_CHARS) ) );
-                
-            $this->_postid = $post_id;
+            update_post_meta( $post_id, "_cf7_coinsnap_s_url", sanitize_text_field( filter_input(INPUT_POST,'coinsnap_s_url',FILTER_SANITIZE_FULL_SPECIAL_CHARS) ) );        
             
-            $client = new \Coinsnap\Client\Store($this->getApiUrl(), $this->getApiKey());
-            try {
-                $store = $client->getStore($this->getStoreId());
-                if ($store['code'] === 200) {            
-                    $webhook_url = $this->get_webhook_url();
-                    if ( ! $this->webhookExists( $this->getStoreId(), $this->getApiKey(), $webhook_url ) ) {
-                        if ( ! $this->registerWebhook( $this->getStoreId(), $this->getApiKey(), $webhook_url ) ) {
-                            update_post_meta( $post_id, "_cf7_coinsnap_webhook", 'failed' );
-                        }
-                        else {
-                            update_post_meta( $post_id, "_cf7_coinsnap_webhook", 'registered' );
-                        }
+        $client = new \Coinsnap\Client\Store($this->getApiUrl(), $this->getApiKey());
+        try {
+            $store = $client->getStore($this->getStoreId());
+            
+            if ($store['code'] === 200) {                    
+                if ( !$this->webhookExists( $this->getApiUrl(), $this->getApiKey(), $this->getStoreId() )) {
+                    if ( !$this->registerWebhook( $this->getApiUrl(), $this->getApiKey(), $this->getStoreId() )) {
+                        $notice->addNotice('failed', __('Contact Form 7: Unable to create webhook on Coinsnap Server', 'coinsnap-for-contact-form-7'));
                     }
                     else {
-                        update_post_meta( $post_id, "_cf7_coinsnap_webhook", 'exists' );
+                        $notice->addNotice('success',__('Contact Form 7: Successfully registered webhook on Coinsnap Server', 'coinsnap-for-contact-form-7'));
                     }
                 }
                 else {
-                    update_post_meta( $post_id, "_cf7_coinsnap_webhook", 'noconnection' );
+                    $notice->addNotice('info',__('Contact Form 7: Webhook already exists, skipping webhook creation', 'coinsnap-for-contact-form-7'));
                 }
             }
-            catch (\Throwable $e) {
-                
+            else {
+                $notice->addNotice('failed', __('Contact Form 7: API connection error', 'coinsnap-for-contact-form-7'));
             }
-	}
+        }
+        catch (\Throwable $e) {
+            $notice->addNotice('failed', __('Contact Form 7: API connection error', 'coinsnap-for-contact-form-7'));
+        }
+    }
 
-	function coinsnapcf7_editor_panels( $panels ) {
-		$new_page = array(
-			'coinsnap' => array(
-				'title'    => __( 'Coinsnap', 'coinsnap-for-contact-form-7' ),
-				'callback' => array( $this, 'coinsnapcf7_admin_after_additional_settings' )
-			)
-		);
-		$panels   = array_merge( $panels, $new_page );
+    function coinsnapcf7_editor_panels( $panels ) {
+        $new_page = array(
+            'coinsnap' => array(
+		'title'    => __( 'Coinsnap', 'coinsnap-for-contact-form-7' ),
+		'callback' => array( $this, 'coinsnapcf7_admin_after_additional_settings' )
+            )
+	);
+	
+        $panels = array_merge( $panels, $new_page );
+        return $panels;
+    }
 
-		return $panels;
-	}
+    function coinsnapcf7_admin_after_additional_settings( $cf7 ) {
 
-	function coinsnapcf7_admin_after_additional_settings( $cf7 ) {
+        $post_id = sanitize_text_field( filter_input(INPUT_GET,'post',FILTER_VALIDATE_INT) );
 
-            $post_id = sanitize_text_field( filter_input(INPUT_GET,'post',FILTER_VALIDATE_INT) );
-
-            $coinsnap_enable    = get_post_meta( $post_id, "_cf7_coinsnap_enable", true );
-            $coinsnap_autoredirect = get_post_meta( $post_id, "_cf7_coinsnap_autoredirect", true );
-            $coinsnap_paymentfirst = get_post_meta( $post_id, "_cf7_coinsnap_paymentfirst", true );
-            $coinsnap_currency = get_post_meta( $post_id, "_cf7_coinsnap_currency", true );
-            if ( empty( $coinsnap_currency ) ) {
-                $coinsnap_currency = 'EUR';
-            }
+        $coinsnap_enable    = get_post_meta( $post_id, "_cf7_coinsnap_enable", true );
+        $coinsnap_autoredirect = get_post_meta( $post_id, "_cf7_coinsnap_autoredirect", true );
+        $coinsnap_paymentfirst = get_post_meta( $post_id, "_cf7_coinsnap_paymentfirst", true );
+        $coinsnap_currency = get_post_meta( $post_id, "_cf7_coinsnap_currency", true );
+        if ( empty( $coinsnap_currency ) ) { $coinsnap_currency = 'EUR'; }
                 
                 $coinsnap_provider = get_post_meta( $post_id, "_cf7_coinsnap_provider", true );
                 $coinsnap_provider_array = array(
@@ -756,13 +727,13 @@ class CoinsnapCf7 {
                     </div>
                 </div>';
 		echo '<input type="hidden" name="post" value="' . esc_html($post_id) . '"></div>';
-	}
+    }
 
     public function coinsnap_redirect_payment( $cf7 ) {
-		global $wpdb;
+        global $wpdb;
 
-		$post_id       = $cf7->id();
-		$this->_postid = $post_id;
+        $post_id       = $cf7->id();
+        $this->_postid = $post_id;
 
 		$enable = get_post_meta( $post_id, "_cf7_coinsnap_enable", true );
                 $redirectAutomatically = get_post_meta( $post_id, "_cf7_coinsnap_autoredirect", true );
@@ -880,43 +851,94 @@ class CoinsnapCf7 {
     public function process_webhook() {
         global $wpdb;
 
+        //  cf7-listener get parameter check
         if ( filter_input(INPUT_GET,'cf7-listener',FILTER_SANITIZE_FULL_SPECIAL_CHARS) === null  || filter_input(INPUT_GET,'cf7-listener',FILTER_SANITIZE_FULL_SPECIAL_CHARS) !== 'coinsnap' ) { return; }
+        
+        //  form_id get parameter check
+        $form_id = filter_input(INPUT_GET,'form-id',FILTER_VALIDATE_INT);
+        if ( $form_id < 1 ) {
+            return;
+        }
 
-        $this->_postid = filter_input(INPUT_GET,'form_id',FILTER_SANITIZE_FULL_SPECIAL_CHARS);
-
-        $notify_json = file_get_contents( 'php://input' );
-        $notify_ar  = json_decode( $notify_json, true );
-        $invoice_id = $notify_ar['invoiceId'];
-
+        $this->_postid = $form_id;
+        
         try {
-            $client    = new \Coinsnap\Client\Invoice( $this->getApiUrl(), $this->getApiKey() );
-            $csinvoice = $client->getInvoice( $this->getStoreId(), $invoice_id );
-            $status    = $csinvoice->getData()['status'];
-            $order_id  = $csinvoice->getData()['orderId'];
-        } catch ( \Throwable $e ) {
-            echo "Error";
-            exit;
-	}
-	
-        $payment_res = $csinvoice->getData();
-	unset( $payment_res['qrCodes'] );
-	unset( $payment_res['lightningInvoice'] );
-	$table_name = $this->get_tablename();
-	$wpdb->update( $table_name, array(
-		'payment_details' => wp_json_encode( $payment_res, true ),
-		'status'          => $status
-            ),
-	);
+            // First check if we have any input
+            $rawPostData = file_get_contents("php://input");
+            if (!$rawPostData) {
+                wp_die('No raw post data received', '', ['response' => 400]);
+            }
 
-	echo "OK";
-	exit;
+            // Get headers and check for signature
+            $headers = getallheaders();
+            $signature = null; $payloadKey = null;
+            $_provider = $this->get_payment_provider();
+                
+            foreach ($headers as $key => $value) {
+                if ((strtolower($key) === 'x-coinsnap-sig' && $_provider === 'coinsnap') || (strtolower($key) === 'btcpay-sig' && $_provider === 'btcpay')) {
+                        $signature = $value;
+                        $payloadKey = strtolower($key);
+                }
+            }
+
+            // Handle missing or invalid signature
+            if (!isset($signature)) {
+                wp_die('Authentication required', '', ['response' => 401]);
+            }
+
+            // Validate the signature
+            $webhook = unserialize(get_post_meta($form_id , "_cf7_coinsnap_webhook", true ));
+            if (!Webhook::isIncomingWebhookRequestValid($rawPostData, $signature, $webhook['secret'])) {
+                wp_die('Invalid authentication signature', '', ['response' => 401]);
+            }
+
+            // Parse the JSON payload
+            $postData = json_decode($rawPostData, false, 512, JSON_THROW_ON_ERROR);
+
+            if (!isset($postData->invoiceId)) {
+                wp_die('No Coinsnap invoiceId provided', '', ['response' => 400]);
+            }
+            
+            $invoice_id = $postData->invoiceId;
+            
+            if(strpos($invoice_id,'test_') !== false){
+                wp_die('Successful webhook test', '', ['response' => 200]);
+            }
+            
+            $client = new \Coinsnap\Client\Invoice( $this->getApiUrl(), $this->getApiKey() );			
+            $csinvoice = $client->getInvoice($this->getStoreId(), $invoice_id);
+            $status    = $csinvoice->getData()['status'];
+            $order_id  = $csinvoice->getData()['orderId'];	
+            
+            $payment_res = $csinvoice->getData();
+            unset( $payment_res['qrCodes'] );
+            unset( $payment_res['lightningInvoice'] );
+            $table_name = $this->get_tablename();
+            $wpdb->update( $table_name, array(
+                    'payment_details' => wp_json_encode( $payment_res, true ),
+                    'status'          => $status
+                ),
+            );
+
+            echo "OK";
+            exit;
+        
+        }
+        catch (JsonException $e) {
+            wp_die('Invalid JSON payload', '', ['response' => 400]);
+        }
+        catch (\Throwable $e) {
+            
+            $errorMessage = __('Webhook payload error', 'coinsnap-for-contact-form-7' );
+            $this->log_errors( $errorMessage, array($e->getMessage()));
+            
+            wp_die('Internal server error', '', ['response' => 500]);
+        }
     }
     
     public function get_payment_provider() {
         return (get_post_meta( $this->_postid, "_cf7_coinsnap_provider", true) === 'btcpay')? 'btcpay' : 'coinsnap';
     }
-    
-
 
     public function get_webhook_url() {
         return get_site_url() . '/?cf7-listener=coinsnap&form_id=' . $this->_postid;
@@ -934,58 +956,101 @@ class CoinsnapCf7 {
         return ($this->get_payment_provider() === 'btcpay')? get_post_meta( $this->_postid, "_cf7_btcpay_server_url", true ) : COINSNAP_SERVER_URL;
     }
 
-    public function webhookExists( string $storeId, string $apiKey, string $webhook ): bool {
+    public function webhookExists(string $apiUrl, string $apiKey, string $storeId): bool {
         
+        $form_id = (isset($this->_postid) && $this->_postid > 0)? $this->_postid : 0;
+        if($form_id > 0){
         
+            $whClient = new Webhook( $apiUrl, $apiKey );
+            
+            
+            
+            if ($storedWebhook = unserialize(get_post_meta($form_id , "_cf7_coinsnap_webhook", true ))) {
+
+                try {
+                    $existingWebhook = $whClient->getWebhook( $storeId, $storedWebhook['id'] );
+
+                    if($existingWebhook->getData()['id'] === $storedWebhook['id'] && strpos( $existingWebhook->getData()['url'], $storedWebhook['url'] ) !== false){
+                        return true;
+                    }
+                }
+                catch (\Throwable $e) {
+                    $errorMessage = __( 'Error fetching existing Webhook', 'coinsnap-for-contact-form-7' );
+                    $this->log_errors( $errorMessage, array($e->getMessage()));
+                }
+            }
+            try {
+                $storeWebhooks = $whClient->getWebhooks( $storeId );
+                foreach($storeWebhooks as $webhook){
+                    if(strpos( $webhook->getData()['url'], $this->get_webhook_url() ) !== false){
+                        $whClient->deleteWebhook( $storeId, $webhook->getData()['id'] );
+                    }
+                }
+            }
+            catch (\Throwable $e) {
+                $errorMessage = sprintf( 
+                    /* translators: 1: StoreId */
+                    __( 'Error fetching webhooks for store ID %1$s', 'coinsnap-for-contact-form-7' ), $storeId);
+                $this->log_errors( $errorMessage, array($e->getMessage()));
+            }
+        }
+	return false;
+    }
+    
+    public function registerWebhook(string $apiUrl, $apiKey, $storeId){
         
-		try {
-			$whClient = new \Coinsnap\Client\Webhook( $this->getApiUrl(), $apiKey );
-			$Webhooks = $whClient->getWebhooks( $storeId );
+        $form_id = (isset($this->_postid) && $this->_postid > 0)? $this->_postid : 0;
+        if($form_id > 0){
+        
+            try {
+                $whClient = new Webhook( $apiUrl, $apiKey );
+                $webhook = $whClient->createWebhook(
+                    $storeId,   //$storeId
+                    $this->get_webhook_url(), //$url
+                    self::WEBHOOK_EVENTS,   //$specificEvents
+                    null    //$secret
+                );
 
+                update_post_meta(
+                    $form_id,
+                    '_cf7_coinsnap_webhook',serialize(
+                        [
+                        'id' => $webhook->getData()['id'],
+                        'secret' => $webhook->getData()['secret'],
+                        'url' => $webhook->getData()['url']
+                        ]
+                    )
+                    
+                );
 
-			foreach ( $Webhooks as $Webhook ) {
-				//self::deleteWebhook($storeId,$apiKey, $Webhook->getData()['id']);
-				if ( $Webhook->getData()['url'] == $webhook ) {
-					return true;
-				}
-			}
-		} catch ( \Throwable $e ) {
-			return false;
-		}
+                return $webhook;
 
-		return false;
+            }
+            catch (\Throwable $e) {
+                $errorMessage = __('Error creating a new webhook on Coinsnap instance', 'coinsnap-for-contact-form-7' );
+                $this->log_errors( $errorMessage, array($e->getMessage()));
+            }
+        }
+	return null;
     }
 
-    public function registerWebhook( string $storeId, string $apiKey, string $webhook ): bool {
+    public function updateWebhook(string $webhookId,string $webhookUrl,string $secret,bool $enabled,bool $automaticRedelivery,?array $events): ?WebhookResult {
         try {
-            $whClient = new \Coinsnap\Client\Webhook( $this->getApiUrl(), $apiKey );
-
-            $webhook = $whClient->createWebhook(
-				$storeId,   //$storeId
-				$webhook, //$url
-				self::WEBHOOK_EVENTS,
-				null    //$secret
-			);
-
-			return true;
-		} catch ( \Throwable $e ) {
-			return false;
-		}
-
-		return false;
-    }
-
-    public function deleteWebhook( string $storeId, string $apiKey, string $webhookid ): bool {
-        try {
-            $whClient = new \Coinsnap\Client\Webhook( $this->getApiUrl(), $apiKey );
-            $webhook = $whClient->deleteWebhook(
-                $storeId,   //$storeId
-                $webhookid, //$url
+            $whClient = new Webhook($this->getApiUrl(), $this->getApiKey() );
+            $webhook = $whClient->updateWebhook(
+                $this->getStoreId(),
+                $webhookUrl,
+		$webhookId,
+		$events ?? self::WEBHOOK_EVENTS,
+		$enabled,
+		$automaticRedelivery,
+		$secret
             );
-            return true;
+            return $webhook;
         }
         catch (\Throwable $e) {
-            return false;
-        }
+            $errorMessage = __('Error updating existing Webhook from Coinsnap', 'coinsnap-for-contact-form-7' ) . $e->getMessage();
+            $data['errors']['form']['coinsnap'] = esc_html($errorMessage);
+	}
     }
 }

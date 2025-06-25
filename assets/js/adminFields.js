@@ -43,7 +43,7 @@ jQuery(document).ready(function ($) {
         const host = $('#btcpay_server_url').val();
 	if (isValidUrl(host)) {
             let data = {
-                'action': 'btcpay_server_apiurl_handler',
+                'action': 'cf7_btcpay_server_apiurl_handler',
                 'cf7_post': coinsnap_ajax.cf7_post,
                 'host': host,
                 'apiNonce': coinsnap_ajax.nonce

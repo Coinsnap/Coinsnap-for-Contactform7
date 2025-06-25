@@ -99,13 +99,13 @@ add_action('init', function() {
     }
     
 // Setting up and handling custom endpoint for api key redirect from BTCPay Server.
-    add_rewrite_endpoint('btcpay-settings-callback', EP_ROOT);
+    add_rewrite_endpoint('coinsnap-for-cf7-btcpay-settings-callback', EP_ROOT);
 });
 
 // To be able to use the endpoint without appended url segments we need to do this.
 add_filter('request', function($vars) {
-    if (isset($vars['btcpay-settings-callback'])) {
-        $vars['btcpay-settings-callback'] = true;
+    if (isset($vars['coinsnap-for-cf7-btcpay-settings-callback'])) {
+        $vars['coinsnap-for-cf7-btcpay-settings-callback'] = true;
     }
     return $vars;
 });

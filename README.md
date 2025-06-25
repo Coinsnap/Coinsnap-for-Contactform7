@@ -7,7 +7,7 @@
 * Requires at least: 6.2
 * Requires PHP: 7.4
 * Tested up to: 6.8
-* Stable tag: 1.2.0
+* Stable tag: 1.3.0
 * License: GPLv2
 * License URI: http://www.gnu.org/licenses/gpl-2.0.html
 
@@ -188,3 +188,8 @@ From here on you can follow 1.1 to 1.3 and you will be set to sell for Bitcoin i
 * Update: Minimum order amount is added to connection status notice.
 * Compatibility with Coinsnap Form 7 Plugin 6.0.6 is tested.
 * Compatibility with Wordpress 6.8 is tested.
+
+##### 1.3.0 :: 2025-06-25
+* Update: Unique name for BTCPay server setup Wizard return URL is set.
+* Update: Webhook data is saved as setting in Wordpress database.
+* Update: Added secret string check in webhook payload process.
