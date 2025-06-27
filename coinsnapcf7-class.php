@@ -143,7 +143,7 @@ class CoinsnapCf7 {
             catch (\Throwable $e) {
                 $response = [
                         'result' => false,
-                        'message' => __('Contact Form 7: API connection is not established', 'coinsnap-for-contact-form-7')
+                        'message' => __('Contact Form 7: API connection is not established (0)', 'coinsnap-for-contact-form-7')
                 ];
                 $this->sendJsonResponse($response);
             }
@@ -178,19 +178,21 @@ class CoinsnapCf7 {
                 
                 $webhookExists = $this->webhookExists( $this->getApiUrl(), $this->getApiKey(), $this->getStoreId());
 
+                
                 if($webhookExists) {
                     $response = ['result' => true,'message' => $_message_connected.' ('.$connectionData.')'];
                     $this->sendJsonResponse($response);
                 }
+                
+                
 
                 $webhook = $this->registerWebhook( $this->getApiUrl(), $this->getApiKey(), $this->getStoreId());
                 $response['result'] = (bool)$webhook;
                 $response['message'] = $webhook ? $_message_connected.' ('.$connectionData.')' : $_message_disconnected.' (Webhook)';
-                //$response['display'] = get_option('coinsnap_connection_status_display');
             }
             catch (\Throwable $e) {
                 //$response['message'] = $e->getMessage();
-                $response['message'] =  __('Contact Form 7: API connection is not established', 'coinsnap-for-contact-form-7');
+                $response['message'] =  __('Contact Form 7: API connection is not established (0+)', 'coinsnap-for-contact-form-7');
             }
 
             $this->sendJsonResponse($response);
@@ -484,7 +486,7 @@ class CoinsnapCf7 {
 			'current'   => $pagenum
 		) );
 		if ( $page_links ) {
-			echo esc_html('<center><div class="tablenav"><div class="tablenav-pages"  style="float:none; margin: 1em 0">' . $page_links . '</div></div></center>');
+			echo wp_kses('<center><div class="tablenav"><div class="tablenav-pages" style="float:none; margin: 1em 0">' . $page_links . '</div></div></center>',array('center' => array(), 'div' => array('class' => true, 'style' => true, 'id' => true), 'a' => array('class' => true, 'style' => true, 'href' => true), 'span' => array('class' => true, 'style' => true, 'id' => true) ));
 		}
 		echo '<br><hr></div>';
     }
@@ -550,11 +552,11 @@ class CoinsnapCf7 {
                 }
             }
             else {
-                $notice->addNotice('failed', __('Contact Form 7: API connection error', 'coinsnap-for-contact-form-7'));
+                $notice->addNotice('failed', __('Contact Form 7: API connection error (1)', 'coinsnap-for-contact-form-7'));
             }
         }
         catch (\Throwable $e) {
-            $notice->addNotice('failed', __('Contact Form 7: API connection error', 'coinsnap-for-contact-form-7'));
+            $notice->addNotice('failed', __('Contact Form 7: API connection error (2)', 'coinsnap-for-contact-form-7'));
         }
     }
 
@@ -603,7 +605,7 @@ class CoinsnapCf7 {
                 $coinsnap_paymentfirst_checked = ($coinsnap_paymentfirst == "0") ? '' : 'CHECKED'; 
 
 		echo '<div class="coinsnapcf7">';
-                echo '<div class="coinsnapcf7-row"><div id="coinsnapConnectionStatus"></div></div';
+                echo '<div class="coinsnapcf7-row"><div id="coinsnapConnectionStatus"></div></div>';
 		echo '<div class="coinsnapcf7-row">
                         <div class="coinsnapcf7-field inline-form">
                             <input type="checkbox" value="1" id="coinsnap_enable" name="coinsnap_enable" ' . esc_html($coinsnap_enable_checked) . '><label for="coinsnap_enable">'. esc_html__('Enable Coinsnap on this form','coinsnap-for-contact-form-7').'</label>
@@ -930,7 +932,6 @@ class CoinsnapCf7 {
         catch (\Throwable $e) {
             
             $errorMessage = __('Webhook payload error', 'coinsnap-for-contact-form-7' );
-            $this->log_errors( $errorMessage, array($e->getMessage()));
             
             wp_die('Internal server error', '', ['response' => 500]);
         }
@@ -962,21 +963,19 @@ class CoinsnapCf7 {
         if($form_id > 0){
         
             $whClient = new Webhook( $apiUrl, $apiKey );
+            $storedWebhook = unserialize(get_post_meta($form_id , "_cf7_coinsnap_webhook", true ));
             
-            
-            
-            if ($storedWebhook = unserialize(get_post_meta($form_id , "_cf7_coinsnap_webhook", true ))) {
+            if (is_array($storedWebhook) && isset($storedWebhook['id'])) {
 
                 try {
                     $existingWebhook = $whClient->getWebhook( $storeId, $storedWebhook['id'] );
-
+                    
                     if($existingWebhook->getData()['id'] === $storedWebhook['id'] && strpos( $existingWebhook->getData()['url'], $storedWebhook['url'] ) !== false){
                         return true;
                     }
                 }
                 catch (\Throwable $e) {
                     $errorMessage = __( 'Error fetching existing Webhook', 'coinsnap-for-contact-form-7' );
-                    $this->log_errors( $errorMessage, array($e->getMessage()));
                 }
             }
             try {
@@ -991,66 +990,8 @@ class CoinsnapCf7 {
                 $errorMessage = sprintf( 
                     /* translators: 1: StoreId */
                     __( 'Error fetching webhooks for store ID %1$s', 'coinsnap-for-contact-form-7' ), $storeId);
-                $this->log_errors( $errorMessage, array($e->getMessage()));
             }
         }
 	return false;
-    }
-    
-    public function registerWebhook(string $apiUrl, $apiKey, $storeId){
-        
-        $form_id = (isset($this->_postid) && $this->_postid > 0)? $this->_postid : 0;
-        if($form_id > 0){
-        
-            try {
-                $whClient = new Webhook( $apiUrl, $apiKey );
-                $webhook = $whClient->createWebhook(
-                    $storeId,   //$storeId
-                    $this->get_webhook_url(), //$url
-                    self::WEBHOOK_EVENTS,   //$specificEvents
-                    null    //$secret
-                );
-
-                update_post_meta(
-                    $form_id,
-                    '_cf7_coinsnap_webhook',serialize(
-                        [
-                        'id' => $webhook->getData()['id'],
-                        'secret' => $webhook->getData()['secret'],
-                        'url' => $webhook->getData()['url']
-                        ]
-                    )
-                    
-                );
-
-                return $webhook;
-
-            }
-            catch (\Throwable $e) {
-                $errorMessage = __('Error creating a new webhook on Coinsnap instance', 'coinsnap-for-contact-form-7' );
-                $this->log_errors( $errorMessage, array($e->getMessage()));
-            }
-        }
-	return null;
-    }
-
-    public function updateWebhook(string $webhookId,string $webhookUrl,string $secret,bool $enabled,bool $automaticRedelivery,?array $events): ?WebhookResult {
-        try {
-            $whClient = new Webhook($this->getApiUrl(), $this->getApiKey() );
-            $webhook = $whClient->updateWebhook(
-                $this->getStoreId(),
-                $webhookUrl,
-		$webhookId,
-		$events ?? self::WEBHOOK_EVENTS,
-		$enabled,
-		$automaticRedelivery,
-		$secret
-            );
-            return $webhook;
-        }
-        catch (\Throwable $e) {
-            $errorMessage = __('Error updating existing Webhook from Coinsnap', 'coinsnap-for-contact-form-7' ) . $e->getMessage();
-            $data['errors']['form']['coinsnap'] = esc_html($errorMessage);
-	}
     }
 }

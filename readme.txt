@@ -2,7 +2,7 @@
 Contributors: coinsnap
 Tags:  Coinsnap, Contact Form 7, Bitcoin, Lightning
 Tested up to: 6.8
-Stable tag: 1.3.0
+Stable tag: 1.3.1
 License: GPLv2
 License URI: http://www.gnu.org/licenses/gpl-2.0.html
 
@@ -196,3 +196,7 @@ Plugin's page on Coinsnap website: https://coinsnap.io/en/
 * Update: Unique name for BTCPay server setup Wizard return URL is set.
 * Update: Webhook data is saved as setting in Wordpress database.
 * Update: Added secret string check in webhook payload process.
+
+= 1.3.1 :: 2025-06-27 =
+* Fixed bug in webhook creation flow
+* Compatibility with Coinsnap Form 7 Plugin 6.1 is tested.
