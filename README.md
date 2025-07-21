@@ -7,7 +7,7 @@
 * Requires at least: 6.2
 * Requires PHP: 7.4
 * Tested up to: 6.8
-* Stable tag: 1.3.1
+* Stable tag: 1.3.2
 * License: GPLv2
 * License URI: http://www.gnu.org/licenses/gpl-2.0.html
 
@@ -197,3 +197,9 @@ From here on you can follow 1.1 to 1.3 and you will be set to sell for Bitcoin i
 ##### 1.3.1 :: 2025-06-27
 * Fixed bug in webhook creation flow
 * Compatibility with Coinsnap Form 7 Plugin 6.1 is tested.
+
+##### 1.3.2 :: 2025-07-21
+* Fixed bug in webhook creation flow
+* Update: Added nonce check for BTCPay server request in Wizard setup flow.
+* Update: Generate API Key button behavior is changed.
+* Compatibility with Wordpress 6.8.2 is tested.

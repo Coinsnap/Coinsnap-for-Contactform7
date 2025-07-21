@@ -3,7 +3,7 @@
  * Plugin Name:     Bitcoin Payment for Contact Form 7
  * Plugin URI:      https://coinsnap.io/coinsnap-for-contact-form-7-plugin/
  * Description:     With this Bitcoin payment plugin for Contact Form 7 you can now offer products, downloads, bookings or get donations in Bitcoin right in your forms!
- * Version:         1.3.1
+ * Version:         1.3.2
  * Author:          Coinsnap
  * Author URI:      https://coinsnap.io/
  * Text Domain:     coinsnap-for-contact-form-7
@@ -22,7 +22,7 @@
 defined( 'ABSPATH' ) || exit;
 
 if(!defined('COINSNAPCF7_REFERRAL_CODE' )){define( 'COINSNAPCF7_REFERRAL_CODE', 'D19827' );}
-if(!defined('COINSNAPCF7_VERSION' )){define( 'COINSNAPCF7_VERSION', '1.3.1' );}
+if(!defined('COINSNAPCF7_VERSION' )){define( 'COINSNAPCF7_VERSION', '1.3.2' );}
 if(!defined('COINSNAP_SERVER_URL')){define( 'COINSNAP_SERVER_URL', 'https://app.coinsnap.io' );}
 if(!defined('COINSNAP_API_PATH')){define( 'COINSNAP_API_PATH', '/api/v1/');}
 if(!defined('COINSNAP_SERVER_PATH')){define( 'COINSNAP_SERVER_PATH', 'stores' );}
@@ -106,6 +106,7 @@ add_action('init', function() {
 add_filter('request', function($vars) {
     if (isset($vars['coinsnap-for-cf7-btcpay-settings-callback'])) {
         $vars['coinsnap-for-cf7-btcpay-settings-callback'] = true;
+        $vars['coinsnap-for-cf7-btcpay-nonce'] = wp_create_nonce('coinsnapcf7-btcpay-nonce');
     }
     return $vars;
 });

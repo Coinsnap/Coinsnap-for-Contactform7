@@ -41,10 +41,12 @@ class CoinsnapCf7 {
             if (!isset( $wp_query->query_vars['coinsnap-for-cf7-btcpay-settings-callback'])) {
                 return;
             }
+            
+            if(!isset($wp_query->query_vars['coinsnap-for-cf7-btcpay-nonce']) || !wp_verify_nonce($wp_query->query_vars['coinsnap-for-cf7-btcpay-nonce'],'coinsnapcf7-btcpay-nonce')){
+                return;
+            }
 
             $CoinsnapBTCPaySettingsUrl = admin_url('admin.php?page=wpcf7&post='.$post_id.'&active-tab=coinsnap&provider=btcpay');
-
-            $rawData = file_get_contents('php://input');
 
             $btcpay_server_url = get_post_meta( $post_id, "_cf7_btcpay_server_url", true );
             $btcpay_api_key  = filter_input(INPUT_POST,'apiKey',FILTER_SANITIZE_FULL_SPECIAL_CHARS);
@@ -57,12 +59,14 @@ class CoinsnapCf7 {
             }
 
             // Data does get submitted with url-encoded payload, so parse $_POST here.
-            if (!empty($_POST) || wp_verify_nonce(filter_input(INPUT_POST,'wp_nonce',FILTER_SANITIZE_FULL_SPECIAL_CHARS),'-1')) {
+            if (!empty($_POST)) {
                 $data['apiKey'] = filter_input(INPUT_POST,'apiKey',FILTER_SANITIZE_FULL_SPECIAL_CHARS) ?? null;
-                $permissions = (isset($_POST['permissions']) && is_array($_POST['permissions']))? $_POST['permissions'] : null;
-                if (isset($permissions)) {
-                    foreach ($permissions as $key => $value) {
-                        $data['permissions'][$key] = sanitize_text_field($permissions[$key] ?? null);
+                if(isset($_POST['permissions'])){
+                    $permissions = array_map('sanitize_text_field', wp_unslash($_POST['permissions']));
+                    if(is_array($permissions)){
+                        foreach ($permissions as $key => $value) {
+                            $data['permissions'][$key] = sanitize_text_field($permissions[$key] ?? null);
+                        }
                     }
                 }
             }
@@ -669,7 +673,7 @@ class CoinsnapCf7 {
                 echo '<div class="coinsnapcf7-row coinsnapcf7-btcpay">
                           <label for="btcpay_wizard_button">'. esc_html__('Setup wizard','coinsnap-for-contact-form-7').'</label>
                           <div class="coinsnapcf7-field">
-                           <button class="button btcpay-apikey-link" id="btcpay_wizard_button" target="_blank">'. esc_html__('Generate API key','coinsnap-for-contact-form-7').'</button>
+                           <button class="button btcpay-apikey-link" type="button" id="btcpay_wizard_button" target="_blank">'. esc_html__('Generate API key','coinsnap-for-contact-form-7').'</button>
                           </div>
                         </div>';
                 
@@ -993,5 +997,37 @@ class CoinsnapCf7 {
             }
         }
 	return false;
+    }
+    
+    public function registerWebhook(string $apiUrl, $apiKey, $storeId){
+        
+        $form_id = (isset($this->_postid) && $this->_postid > 0)? $this->_postid : 0;
+        if($form_id > 0){
+        
+            try {
+                $whClient = new Webhook( $apiUrl, $apiKey );
+                $webhook = $whClient->createWebhook(
+                    $storeId,   //$storeId
+                    $this->get_webhook_url(), //$url
+                    self::WEBHOOK_EVENTS,   //$specificEvents
+                    null    //$secret
+                );
+
+                update_post_meta( $form_id, "_cf7_coinsnap_webhook", serialize([
+                        'id' => $webhook->getData()['id'],
+                        'secret' => $webhook->getData()['secret'],
+                        'url' => $webhook->getData()['url']
+                    ]
+                ));
+
+                return $webhook;
+
+            }
+            catch (\Throwable $e) {
+                $errorMessage = __('Error creating a new webhook on Coinsnap instance: ', 'coinsnap-for-contact-form-7' ) . $e->getMessage();
+            }
+
+            return null;
+        }
     }
 }
