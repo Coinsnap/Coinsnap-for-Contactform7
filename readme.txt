@@ -2,7 +2,7 @@
 Contributors: coinsnap
 Tags:  Coinsnap, Contact Form 7, Bitcoin, Lightning
 Tested up to: 6.8
-Stable tag: 1.3.2
+Stable tag: 1.4.0
 License: GPLv2
 License URI: http://www.gnu.org/licenses/gpl-2.0.html
 
@@ -206,3 +206,8 @@ Plugin's page on Coinsnap website: https://coinsnap.io/en/
 * Update: Added nonce check for BTCPay server request in Wizard setup flow.
 * Update: Generate API Key button behavior is changed.
 * Compatibility with Wordpress 6.8.2 is tested.
+
+= 1.4.0 :: 2025-08-10 =
+* Updated BTCPay server minimum payment amount calculation system
+* Updated BTCPay server events and webhook payload handler
+* Compatibility with Contact Form 7 6.1.1 is tested.

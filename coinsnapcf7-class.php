@@ -10,7 +10,8 @@ class CoinsnapCf7 {
     private static $_instance = null;
     protected $_full_path = __FILE__;
     private $_postid;
-    public const WEBHOOK_EVENTS = [ 'New', 'Expired', 'Settled', 'Processing' ];
+    public const COINSNAP_WEBHOOK_EVENTS = ['New','Expired','Settled','Processing','Invalid'];
+    public const BTCPAY_WEBHOOK_EVENTS = ['InvoiceCreated','InvoiceExpired','InvoiceSettled','InvoiceProcessing','InvoiceInvalid'];
 
     public function __construct() {
         add_filter( 'wpcf7_editor_panels', array( $this, 'coinsnapcf7_editor_panels' ) );
@@ -802,6 +803,10 @@ class CoinsnapCf7 {
                     $metadata['orderNumber']  = $invoice_no;
                     $metadata['customerName'] = $buyerName;
                     $metadata['customerEmail'] = $buyerEmail;
+                    
+                    if($this->get_payment_provider() === 'btcpay') {
+                        $metadata['orderId'] = $invoice_no;
+                    }
 
                     $camount = \Coinsnap\Util\PreciseNumber::parseFloat( $amount, 2 );
                     
@@ -881,9 +886,9 @@ class CoinsnapCf7 {
             $_provider = $this->get_payment_provider();
                 
             foreach ($headers as $key => $value) {
-                if ((strtolower($key) === 'x-coinsnap-sig' && $_provider === 'coinsnap') || (strtolower($key) === 'btcpay-sig' && $_provider === 'btcpay')) {
-                        $signature = $value;
-                        $payloadKey = strtolower($key);
+                if (strtolower($key) === 'x-coinsnap-sig' || strtolower($key) === 'btcpay-sig') {
+                    $signature = $value;
+                    $payloadKey = strtolower($key);
                 }
             }
 
@@ -897,42 +902,45 @@ class CoinsnapCf7 {
             if (!Webhook::isIncomingWebhookRequestValid($rawPostData, $signature, $webhook['secret'])) {
                 wp_die('Invalid authentication signature', '', ['response' => 401]);
             }
+            
+            try {
 
-            // Parse the JSON payload
-            $postData = json_decode($rawPostData, false, 512, JSON_THROW_ON_ERROR);
+                // Parse the JSON payload
+                $postData = json_decode($rawPostData, false, 512, JSON_THROW_ON_ERROR);
 
-            if (!isset($postData->invoiceId)) {
-                wp_die('No Coinsnap invoiceId provided', '', ['response' => 400]);
+                if (!isset($postData->invoiceId)) {
+                    wp_die('No Coinsnap invoiceId provided', '', ['response' => 400]);
+                }
+
+                if(strpos($postData->invoiceId,'test_') !== false){
+                    wp_die('Successful webhook test', '', ['response' => 200]);
+                }
+
+                $invoice_id = $postData->invoiceId;
+
+                $client = new \Coinsnap\Client\Invoice( $this->getApiUrl(), $this->getApiKey() );			
+                $csinvoice = $client->getInvoice($this->getStoreId(), $invoice_id);
+                $status    = $csinvoice->getData()['status'];
+                $order_id = ($this->get_payment_provider() === 'btcpay')? $csinvoice->getData()['metadata']['orderId'] : $csinvoice->getData()['orderId'];
+
+                $payment_res = $csinvoice->getData();
+                unset( $payment_res['qrCodes'] );
+                unset( $payment_res['lightningInvoice'] );
+                $table_name = $this->get_tablename();
+                $wpdb->update( $table_name, array(
+                        'payment_details' => wp_json_encode( $payment_res, true ),
+                        'status'          => $status
+                    ),
+                );
+
+                echo "OK";
+                exit;
             }
-            
-            $invoice_id = $postData->invoiceId;
-            
-            if(strpos($invoice_id,'test_') !== false){
-                wp_die('Successful webhook test', '', ['response' => 200]);
+            catch (JsonException $e) {
+                wp_die('Invalid JSON payload', '', ['response' => 400]);
             }
-            
-            $client = new \Coinsnap\Client\Invoice( $this->getApiUrl(), $this->getApiKey() );			
-            $csinvoice = $client->getInvoice($this->getStoreId(), $invoice_id);
-            $status    = $csinvoice->getData()['status'];
-            $order_id  = $csinvoice->getData()['orderId'];	
-            
-            $payment_res = $csinvoice->getData();
-            unset( $payment_res['qrCodes'] );
-            unset( $payment_res['lightningInvoice'] );
-            $table_name = $this->get_tablename();
-            $wpdb->update( $table_name, array(
-                    'payment_details' => wp_json_encode( $payment_res, true ),
-                    'status'          => $status
-                ),
-            );
-
-            echo "OK";
-            exit;
+        }
         
-        }
-        catch (JsonException $e) {
-            wp_die('Invalid JSON payload', '', ['response' => 400]);
-        }
         catch (\Throwable $e) {
             
             $errorMessage = __('Webhook payload error', 'coinsnap-for-contact-form-7' );
@@ -1006,10 +1014,11 @@ class CoinsnapCf7 {
         
             try {
                 $whClient = new Webhook( $apiUrl, $apiKey );
+                $webhook_events = ($this->get_payment_provider() === 'btcpay')? self::BTCPAY_WEBHOOK_EVENTS : self::COINSNAP_WEBHOOK_EVENTS;
                 $webhook = $whClient->createWebhook(
                     $storeId,   //$storeId
                     $this->get_webhook_url(), //$url
-                    self::WEBHOOK_EVENTS,   //$specificEvents
+                    $webhook_events,   //$specificEvents
                     null    //$secret
                 );
 

@@ -27,7 +27,6 @@ class Notice {
                     echo '<div class="notice notice-'.esc_html($notice['type'].$dismissible_add).'"><p>'.esc_html($notice['message']).'</p></div>';
                 }
             }
-        
         }
     }
 }
