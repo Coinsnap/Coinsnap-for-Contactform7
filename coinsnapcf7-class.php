@@ -537,7 +537,7 @@ class CoinsnapCf7 {
             update_post_meta( $post_id, "_cf7_btcpay_store_id", sanitize_text_field( filter_input(INPUT_POST,'btcpay_store_id',FILTER_SANITIZE_FULL_SPECIAL_CHARS) ) );
             update_post_meta( $post_id, "_cf7_btcpay_api_key", sanitize_text_field( filter_input(INPUT_POST,'btcpay_api_key',FILTER_SANITIZE_FULL_SPECIAL_CHARS) ) );
             
-            update_post_meta( $post_id, "_cf7_coinsnap_s_url", sanitize_text_field( filter_input(INPUT_POST,'coinsnap_s_url',FILTER_SANITIZE_FULL_SPECIAL_CHARS) ) );        
+            update_post_meta( $post_id, "_cf7_coinsnap_s_url", sanitize_text_field( filter_input(INPUT_POST,'coinsnap_s_url',FILTER_SANITIZE_URL) ) );        
             
         $client = new \Coinsnap\Client\Store($this->getApiUrl(), $this->getApiKey());
         try {
@@ -765,7 +765,7 @@ class CoinsnapCf7 {
 		
 		$submission_data = $submission->get_posted_data();
 		$payment_amount  = $submission_data[ $amount_field ] ?? '0';
-		$currency        = get_post_meta( $post_id, "_cf7_coinsnap_currency", true );
+		$currency        = strtoupper(get_post_meta( $post_id, "_cf7_coinsnap_currency", true ));
 		$buyerEmail      = $submission_data[ $email_field ] ?? '';
 		$buyerName       = $submission_data[ $name_field ] ?? '';
 		
@@ -808,14 +808,29 @@ class CoinsnapCf7 {
                         $metadata['orderId'] = $invoice_no;
                     }
 
-                    $camount = \Coinsnap\Util\PreciseNumber::parseFloat( $amount, 2 );
-                    
-                    // Handle Sats-mode because BTCPay does not understand SAT as a currency we need to change to BTC and adjust the amount.
-                    if ($currency === 'SATS' && $_provider === 'btcpay') {
-                        $currency = 'BTC';
-                        $amountBTC = bcdiv($camount->__toString(), '100000000', 8);
-                        $camount = \Coinsnap\Util\PreciseNumber::parseString($amountBTC);
+                    if($this->get_payment_provider() === 'btcpay' && $currency !== 'BTC'){
+                        $store = new \Coinsnap\Client\Store($this->getApiUrl(), $this->getApiKey());
+                        $btcpayCurrencies = $store -> getStoreCurrenciesRates($this->getStoreId(),array($currency));
+                        $isCurrency = true;
+                        if(!isset($btcpayCurrencies['result']['error']) && count($btcpayCurrencies['result']['currencies'])>0){
+                                if(!isset($btcpayCurrencies['result']['currencies']['BTC_'.$currency])){
+                                    $isCurrency = false;
+                                }
+                        }
+                        else {
+                            $isCurrency = false;
+                        }
+
+                        // Handle currencies non-supported by BTCPay Server, we need to change them BTC and adjust the amount.
+                        if( !$isCurrency ){
+                                $currency = 'BTC';
+                                $rate = 1/$checkInvoice['rate'];
+                                $amountBTC = bcdiv(strval($amount), strval($rate), 8);
+                                $amount = (float)$amountBTC;
+                        }
                     }
+
+                    $camount = ($currency === 'BTC')? \Coinsnap\Util\PreciseNumber::parseFloat($amount,8) : \Coinsnap\Util\PreciseNumber::parseFloat($amount,2);
                     
                     $walletMessage = '';
                     
@@ -865,8 +880,10 @@ class CoinsnapCf7 {
         //  cf7-listener get parameter check
         if ( filter_input(INPUT_GET,'cf7-listener',FILTER_SANITIZE_FULL_SPECIAL_CHARS) === null  || filter_input(INPUT_GET,'cf7-listener',FILTER_SANITIZE_FULL_SPECIAL_CHARS) !== 'coinsnap' ) { return; }
         
+        
+        
         //  form_id get parameter check
-        $form_id = filter_input(INPUT_GET,'form-id',FILTER_VALIDATE_INT);
+        $form_id = filter_input(INPUT_GET,'form_id',FILTER_VALIDATE_INT);
         if ( $form_id < 1 ) {
             return;
         }
@@ -928,10 +945,11 @@ class CoinsnapCf7 {
                 unset( $payment_res['lightningInvoice'] );
                 $table_name = $this->get_tablename();
                 $wpdb->update( $table_name, array(
-                        'payment_details' => wp_json_encode( $payment_res, true ),
-                        'status'          => $status
-                    ),
-                );
+			'payment_details' => wp_json_encode( $payment_res, true ),
+			'status'          => $status
+		),
+			array( 'id' => $order_id ), array( '%s', '%s' ), array( '%d' )
+		);
 
                 echo "OK";
                 exit;

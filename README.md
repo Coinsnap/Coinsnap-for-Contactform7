@@ -7,7 +7,7 @@
 * Requires at least: 6.2
 * Requires PHP: 7.4
 * Tested up to: 6.8
-* Stable tag: 1.4.0
+* Stable tag: 1.4.1
 * License: GPLv2
 * License URI: http://www.gnu.org/licenses/gpl-2.0.html
 
@@ -208,3 +208,8 @@ From here on you can follow 1.1 to 1.3 and you will be set to sell for Bitcoin i
 * Updated BTCPay server minimum payment amount calculation system
 * Updated BTCPay server events and webhook payload handler
 * Compatibility with Contact Form 7 6.1.1 is tested.
+
+##### 1.4.1 :: 2025-10-15
+* Update: Added non-supported by BTCPay server currencies handler on invoice request flow.
+* Update: Added custom redirect after payment page in module settings.
+* Compatibility with Contact Form 7 6.1.2 is tested.
