@@ -397,7 +397,7 @@ class CoinsnapCf7 {
                 }
             }
             if(!$is_cs_amount){
-                $errorMessage = esc_html_e("Form doesn't contain cs_amount field",'coinsnap-for-contact-form-7');
+                $errorMessage = esc_html__("Form doesn't contain cs_amount field",'coinsnap-for-contact-form-7');
                 $result->invalidate( $tag_submit, $errorMessage);
             }
             return $result;
