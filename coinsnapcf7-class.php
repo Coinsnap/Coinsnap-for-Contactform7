@@ -177,7 +177,7 @@ class CoinsnapCf7 {
             try {
                 $this_store = $store->getStore($this->getStoreId());
                 
-                if ($this_store['code'] !== 200) {
+                if ($this_store->getData()['code'] !== 200) {
                     $this->sendJsonResponse($response);
                 }
                 
@@ -543,7 +543,7 @@ class CoinsnapCf7 {
         try {
             $store = $client->getStore($this->getStoreId());
             
-            if ($store['code'] === 200) {                    
+            if ($store->getData()['code'] === 200) {                    
                 if ( !$this->webhookExists( $this->getApiUrl(), $this->getApiKey(), $this->getStoreId() )) {
                     if ( !$this->registerWebhook( $this->getApiUrl(), $this->getApiKey(), $this->getStoreId() )) {
                         $notice->addNotice('failed', __('Contact Form 7: Unable to create webhook on Coinsnap Server', 'coinsnap-for-contact-form-7'));
