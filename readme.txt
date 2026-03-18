@@ -2,7 +2,7 @@
 Contributors: coinsnap
 Tags:  Coinsnap, Contact Form 7, Bitcoin, Lightning
 Tested up to: 6.9
-Stable tag: 1.4.2
+Stable tag: 1.5.0
 License: GPLv2
 License URI: http://www.gnu.org/licenses/gpl-2.0.html
 
@@ -221,3 +221,15 @@ Plugin's page on Coinsnap website: https://coinsnap.io/modules/contact-form-7/
 * Updated \Coinsnap\Client\Store::getStore() method data usage.
 * Compatibility with Wordpress 6.9 is tested.
 * Compatibility with Contact Form 7 6.1.4 is tested.
+
+= 1.4.3 :: 2025-12-28 =
+* Updated PHP files protection.
+
+= 1.5.0 :: 2026-03-17 =
+* Update: added form submission after payment functionality
+* Compatibility with Contact Form 7 6.1.5 is tested.
+* Compatibility with Wordpress 6.9.4 is tested.
+* Updated plugin description.
+
+
+
