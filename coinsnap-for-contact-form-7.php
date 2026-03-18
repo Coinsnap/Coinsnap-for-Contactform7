@@ -3,7 +3,7 @@
  * Plugin Name:     Bitcoin Payment for Contact Form 7
  * Plugin URI:      https://coinsnap.io/wp-add-ons/contact-form-7/
  * Description:     With this Bitcoin payment plugin for Contact Form 7 you can now offer products, downloads, bookings or get donations in Bitcoin right in your forms!
- * Version:         1.5.0
+ * Version:         1.5.1
  * Author:          Coinsnap
  * Author URI:      https://coinsnap.io/
  * Text Domain:     coinsnap-for-contact-form-7
@@ -22,7 +22,7 @@
 defined( 'ABSPATH' ) || exit;
 
 if(!defined('COINSNAPCF7_REFERRAL_CODE' )){define( 'COINSNAPCF7_REFERRAL_CODE', 'D19827' );}
-if(!defined('COINSNAPCF7_VERSION' )){define( 'COINSNAPCF7_VERSION', '1.5.0' );}
+if(!defined('COINSNAPCF7_VERSION' )){define( 'COINSNAPCF7_VERSION', '1.5.1' );}
 if(!defined('COINSNAP_SERVER_URL')){define( 'COINSNAP_SERVER_URL', 'https://app.coinsnap.io' );}
 if(!defined('COINSNAP_API_PATH')){define( 'COINSNAP_API_PATH', '/api/v1/');}
 if(!defined('COINSNAP_SERVER_PATH')){define( 'COINSNAP_SERVER_PATH', 'stores' );}
@@ -60,6 +60,7 @@ function coinsnapcf7_activate() {
             `amount` decimal(12,2) NOT NULL DEFAULT 0,
             `status` varchar(20) NOT NULL DEFAULT 'Pending',      	
             `message` TEXT NOT NULL,
+            `form_sent` INT(11) NOT NULL DEFAULT 0,
             PRIMARY KEY (`id`)
 	) DEFAULT COLLATE=utf8_general_ci";
 

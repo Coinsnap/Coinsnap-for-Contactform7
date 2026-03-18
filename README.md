@@ -7,7 +7,7 @@
 * Requires at least: 6.2
 * Requires PHP: 7.4
 * Tested up to: 6.9
-* Stable tag: 1.4.3
+* Stable tag: 1.5.1
 * License: GPLv2
 * License URI: http://www.gnu.org/licenses/gpl-2.0.html
 
@@ -219,5 +219,15 @@ From here on you can follow 1.1 to 1.3 and you will be set to sell for Bitcoin i
 * Compatibility with Wordpress 6.9 is tested.
 * Compatibility with Contact Form 7 6.1.4 is tested.
 
-##### 1.4.3 :: 2025-12-28 =
+##### 1.4.3 :: 2025-12-28
 * Updated PHP files protection.
+
+##### 1.5.0 :: 2026-03-17
+* Update: added form submission after payment functionality
+* Compatibility with Contact Form 7 6.1.5 is tested.
+* Compatibility with Wordpress 6.9.4 is tested.
+* Updated plugin description.
+
+##### 1.5.1 :: 2026-03-18
+* Update: added form submission after payment status in payments table
+

@@ -832,12 +832,6 @@ class CoinsnapCf7 {
                 
                 $invoice_no = $wpdb->insert_id;
                 
-                
-                
-                //print_r($uploaded_files);
-                //exit();
-
-                
                 if(is_array($uploaded_files) && count($uploaded_files) > 0 && $paymentFirst){
                     $upload_dir = wp_upload_dir();
                     $dir = $upload_dir['basedir'] . '/cf7-payments/' . $invoice_no;
@@ -845,7 +839,7 @@ class CoinsnapCf7 {
                     $stored_files = [];
                     foreach ($uploaded_files as $field => $path) {
                         
-                        if (!file_exists($path[0])){ continue; }
+                        if (!isset($path[0]) || !file_exists($path[0])){ continue; }
                         $new_path = $dir . '/' . basename($path[0]);
                         copy($path[0], $new_path);
                         $stored_files[$field] = $new_path;
@@ -1015,58 +1009,28 @@ class CoinsnapCf7 {
                 $payment_res = $csinvoice->getData();
                 unset( $payment_res['qrCodes'] );
                 unset( $payment_res['lightningInvoice'] );
+                
                 $table_name = $this->get_tablename();
+                
+                $wpdb->update( $table_name, 
+                    [
+                        'payment_details' => wp_json_encode( $payment_res, true ),
+                        'status' => $status
+                    ], array( 'id' => $order_id ), array( '%s', '%s' ), array( '%d' ));
                 
                 $paymentFirst = get_post_meta( $form_id, "_cf7_coinsnap_paymentfirst", true );
                 
-                //$message = 'Test '. gmdate('Y-m-d H:i:s',time()) .': ';
-                
-                if($status === 'Settled' && $paymentFirst > 0){
+                if($paymentFirst > 0 && $status === 'Settled'){
                     
                     $order_data = $wpdb->get_row( $wpdb->prepare( "SELECT * FROM %i WHERE id=%d", $table_name, $order_id ), ARRAY_A );
-                    $currentStatus = $order_data['status'];
                     
-                    if($currentStatus !== 'Settled'){
-                    
-                        $contact_form = WPCF7_ContactForm::get_instance($form_id);
-                        $body = json_decode($order_data['field_values'],true);
-                    
-                        $mail = $contact_form->prop('mail');
-                        
-                        foreach($body as $bkey => $bvalue){
-                            $mail['body'] = str_replace("[".$bkey."]", $bvalue, $mail['body']);
-                            $mail['subject'] = str_replace("[".$bkey."]", $bvalue, $mail['subject']);
-                            $mail['sender'] = str_replace("[".$bkey."]", $bvalue, $mail['sender']);
-                            $mail['recipient'] = str_replace("[".$bkey."]", $bvalue, $mail['recipient']);
-                            $mail['additional_headers'] = str_replace("[".$bkey."]", $bvalue, $mail['additional_headers']);
-                        }
-
-                        $files_array = json_decode($order_data['files'],true);
-
-                        if(count($files_array) > 0){
-                            $attachments = array();
-                            foreach($files_array as $_file){
-                                $attachments[] = $_file;
-                            }
-                            $mail['attachments'] = implode("\n", $attachments);
-                        }
-
-                        //$message .= ' --------------------------------------- '. print_r($mail,true);
-                    
-                        // Run submission
-                        $result = WPCF7_Mail::send($mail,'mail');
-                    
-                        //$message .= ' --------------------------------------- '. print_r($result,true);
-                    }
+                    $mail_send_result = $this->cf7_mail_send($form_id,$order_data);
+                    $update_array = [
+                        'message' => $mail_send_result['message'],
+                        'form_sent' => ($mail_send_result['result'] > 0)? 1 : 0
+                    ];
+                    $wpdb->update( $table_name, $update_array, array( 'id' => $order_id ), array( '%s', '%s' ), array( '%d' ));
                 }
-                
-                $wpdb->update( $table_name, array(
-                    'payment_details' => wp_json_encode( $payment_res, true ),
-                    'status' => $status,
-                    //'message' => $message
-                    ),
-                    array( 'id' => $order_id ), array( '%s', '%s' ), array( '%d' )
-		);
 
                 echo "OK";
                 exit;
@@ -1080,6 +1044,42 @@ class CoinsnapCf7 {
             $errorMessage = __('Webhook payload error', 'coinsnap-for-contact-form-7' );
             wp_die('Internal server error', '', ['response' => 500]);
         }
+    }
+    
+    public function cf7_mail_send($form_id,$order_data){
+        
+        $contact_form = WPCF7_ContactForm::get_instance($form_id);
+        $mail = $contact_form->prop('mail');
+        
+        // Sent values
+        $body = json_decode($order_data['field_values'],true);
+        
+        //  Template with sent values replace
+        foreach($body as $bkey => $bvalue){
+            $mail['body'] = str_replace("[".$bkey."]", $bvalue, $mail['body']);
+            $mail['subject'] = str_replace("[".$bkey."]", $bvalue, $mail['subject']);
+            $mail['sender'] = str_replace("[".$bkey."]", $bvalue, $mail['sender']);
+            $mail['recipient'] = str_replace("[".$bkey."]", $bvalue, $mail['recipient']);
+            $mail['additional_headers'] = str_replace("[".$bkey."]", $bvalue, $mail['additional_headers']);
+        }
+
+        //  Sent files
+        $files_array = json_decode($order_data['files'],true);
+
+        if(count($files_array) > 0){
+            $attachments = array();
+            foreach($files_array as $_file){ $attachments[] = $_file; }
+            $mail['attachments'] = implode("\n", $attachments);
+        }
+        
+        //  Submission message
+        $message = 'Submission after payment '. gmdate('Y-m-d H:i:s',time()).' --------------------------------------- '. wp_json_encode($mail,true);
+                    
+        // Run submission
+        $result = WPCF7_Mail::send($mail,'mail');
+        $result_array = array('result' => $result,'message' => $message);
+        
+        return $result_array;
     }
     
     public function get_payment_provider() {
