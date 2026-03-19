@@ -7,7 +7,7 @@
 * Requires at least: 6.2
 * Requires PHP: 7.4
 * Tested up to: 6.9
-* Stable tag: 1.5.1
+* Stable tag: 1.5.2
 * License: GPLv2
 * License URI: http://www.gnu.org/licenses/gpl-2.0.html
 
@@ -231,3 +231,6 @@ From here on you can follow 1.1 to 1.3 and you will be set to sell for Bitcoin i
 ##### 1.5.1 :: 2026-03-18
 * Update: added form submission after payment status in payments table
 
+##### 1.5.2 :: 2026-03-19
+* Updated webhook payload handler.
+* Updated currency rates handler functionality.

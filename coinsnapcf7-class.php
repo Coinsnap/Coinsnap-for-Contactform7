@@ -789,10 +789,10 @@ class CoinsnapCf7 {
                         '_site_admin_email' => get_option('admin_email'),
                         '_date'       => date_i18n(get_option('date_format')),
                         '_time'       => date_i18n(get_option('time_format')),
-                        '_remote_ip' => sanitize_text_field(wp_unslash($_SERVER['REMOTE_ADDR'])) ?? '',
-                        '_user_agent' => sanitize_text_field(wp_unslash($_SERVER['HTTP_USER_AGENT'])) ?? '',
+                        '_remote_ip' => (isset($_SERVER['REMOTE_ADDR']))? sanitize_text_field(wp_unslash($_SERVER['REMOTE_ADDR'])) : '',
+                        '_user_agent' => (isset($_SERVER['HTTP_USER_AGENT']))? sanitize_text_field(wp_unslash($_SERVER['HTTP_USER_AGENT'])) : '',
                         '_url' => wp_unslash($submission->get_meta('url')),
-                        '_referer' => sanitize_text_field(wp_unslash($_SERVER['HTTP_REFERER'])) ?? ''
+                        '_referer' => (isset($_SERVER['HTTP_REFERER']))? sanitize_text_field(wp_unslash($_SERVER['HTTP_REFERER'])) : ''
                     ];
                     
                     foreach($default_data_array as $post_key => $post_value){
@@ -946,8 +946,6 @@ class CoinsnapCf7 {
         //  cf7-listener get parameter check
         if ( filter_input(INPUT_GET,'cf7-listener',FILTER_SANITIZE_FULL_SPECIAL_CHARS) === null  || filter_input(INPUT_GET,'cf7-listener',FILTER_SANITIZE_FULL_SPECIAL_CHARS) !== 'coinsnap' ) { return; }
         
-        
-        
         //  form_id get parameter check
         $form_id = filter_input(INPUT_GET,'form_id',FILTER_VALIDATE_INT);
         if ( $form_id < 1 ) {
@@ -1000,6 +998,7 @@ class CoinsnapCf7 {
                 }
 
                 $invoice_id = $postData->invoiceId;
+                $payload_type = $postData->type;
 
                 $client = new \Coinsnap\Client\Invoice( $this->getApiUrl(), $this->getApiKey() );			
                 $csinvoice = $client->getInvoice($this->getStoreId(), $invoice_id);
@@ -1020,11 +1019,11 @@ class CoinsnapCf7 {
                 
                 $paymentFirst = get_post_meta( $form_id, "_cf7_coinsnap_paymentfirst", true );
                 
-                if($paymentFirst > 0 && $status === 'Settled'){
+                if($paymentFirst > 0 && ($payload_type === 'Settled' || $payload_type === 'InvoiceSettled')){
                     
                     $order_data = $wpdb->get_row( $wpdb->prepare( "SELECT * FROM %i WHERE id=%d", $table_name, $order_id ), ARRAY_A );
                     
-                    $mail_send_result = $this->cf7_mail_send($form_id,$order_data);
+                    $mail_send_result = $this->cf7_mail_send($form_id,$order_data);//cf7_mail_send
                     $update_array = [
                         'message' => $mail_send_result['message'],
                         'form_sent' => ($mail_send_result['result'] > 0)? 1 : 0
@@ -1045,6 +1044,57 @@ class CoinsnapCf7 {
             wp_die('Internal server error', '', ['response' => 500]);
         }
     }
+    /*
+    public function cf7_emulate_send($form_id,$order_data){
+
+        $contact_form = WPCF7_ContactForm::get_instance($form_id);
+
+        // Sent values
+        $body = json_decode($order_data['field_values'],true);
+        
+        $_POST = $body;
+        $_POST['_wpcf7'] = $form_id;
+        $_POST['_wpcf7_unit_tag'] = 'wpcf7-f'.$form_id.'-p0-o1';
+        $_POST['_wpcf7_container_post'] = 0;
+        
+        $files_array = json_decode($order_data['files'],true);
+
+        // attachments
+        add_filter('wpcf7_mail_components', function($components) use ($files_array){
+
+            $valid = [];
+            //  Sent files
+
+            foreach ($files_array as $file) {
+                if (file_exists($file)) {
+                    $valid[] = $file;
+                }
+            }
+
+            $components['attachments'] = implode("\n", $valid);
+
+            return $components;
+        });
+
+        // отключаем spam
+        add_filter('wpcf7_spam', '__return_false');
+
+        //  Submission message
+        $message = 'Submission after payment '. gmdate('Y-m-d H:i:s',time()).
+                ' --------------------------------------- '. wp_json_encode($contact_form,true).
+                ' --------------------------------------- '. wp_json_encode($_POST,true);
+        
+        
+        // отправка как CF7
+        $result = $contact_form->submit(true);
+
+        remove_all_filters('wpcf7_mail_components');
+        remove_all_filters('wpcf7_spam');
+        
+        $result_array = array('result' => $result,'message' => $message);
+
+        return $result_array;
+    }*/
     
     public function cf7_mail_send($form_id,$order_data){
         

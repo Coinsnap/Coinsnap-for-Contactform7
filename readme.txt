@@ -2,7 +2,7 @@
 Contributors: coinsnap
 Tags:  Coinsnap, Contact Form 7, Bitcoin, Lightning
 Tested up to: 6.9
-Stable tag: 1.5.1
+Stable tag: 1.5.2
 License: GPLv2
 License URI: http://www.gnu.org/licenses/gpl-2.0.html
 
@@ -234,4 +234,6 @@ Plugin's page on Coinsnap website: https://coinsnap.io/modules/contact-form-7/
 = 1.5.1 :: 2026-03-18 =
 * Update: added form submission after payment status in payments table
 
-
+= 1.5.2 :: 2026-03-19 =
+* Updated webhook payload handler.
+* Updated currency rates handler functionality.
