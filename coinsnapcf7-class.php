@@ -18,7 +18,7 @@ class CoinsnapCf7 {
         add_action( 'wpcf7_admin_after_additional_settings', array($this,'coinsnapcf7_admin_after_additional_settings') );
         add_action( 'wpcf7_save_contact_form', array( $this, 'coinsnapcf7_save_settings' ) );
         add_filter( 'wpcf7_validate', array( $this, 'coinsnapcf7_payment_validation'),10, 2);
-        add_action( 'wpcf7_before_send_mail', array( $this, 'coinsnap_payment_before' ), 20 );
+        add_action( 'wpcf7_before_send_mail', array( $this, 'coinsnap_payment_before' ), 20, 3 );
         add_action( 'wpcf7_mail_sent', array( $this, 'coinsnap_payment_after' ),30 );
         add_action( 'init', array( $this, 'process_webhook' ) );
         add_action( 'admin_menu', array( $this, 'coinsnapcf7_admin_menu' ), 20 );
@@ -57,6 +57,7 @@ class CoinsnapCf7 {
                 $messageAbort = __('Error on verifying redirected API Key with stored BTCPay Server url. Aborting API wizard. Please try again or continue with manual setup.', 'coinsnap-for-contact-form-7');
                 $notice->addNotice('error', $messageAbort);
                 wp_redirect($CoinsnapBTCPaySettingsUrl);
+                exit();
             }
 
             // Data does get submitted with url-encoded payload, so parse $_POST here.
@@ -177,7 +178,7 @@ class CoinsnapCf7 {
             try {
                 $this_store = $store->getStore($this->getStoreId());
                 
-                if ($this_store['code'] !== 200) {
+                if ($this_store->getData()['code'] !== 200) {
                     $this->sendJsonResponse($response);
                 }
                 
@@ -290,13 +291,23 @@ class CoinsnapCf7 {
         * @param WPCF7_ContactForm $contact_form The Contact Form 7 form object.
     */
     public function coinsnap_payment_before($cf7){
-            $post_id = $cf7->id();
-            $enable = get_post_meta( $post_id, "_cf7_coinsnap_enable", true );
-            $paymentFirst = get_post_meta( $post_id, "_cf7_coinsnap_paymentfirst", true );
+        
+        $post_id = $cf7->id();
+        $enable = get_post_meta( $post_id, "_cf7_coinsnap_enable", true );
+        $paymentFirst = get_post_meta( $post_id, "_cf7_coinsnap_paymentfirst", true );
             
-            if($paymentFirst && $enable){
-                $this->coinsnap_redirect_payment($cf7);
+        if($paymentFirst && $enable && sanitize_text_field( filter_input(INPUT_POST,'after_payment',FILTER_VALIDATE_INT) ) !== 1){
+            
+            $submission = WPCF7_Submission::get_instance();
+
+            if (!$submission) {
+                return;
             }
+            
+            // redirect to payment
+            $this->coinsnap_redirect_payment($cf7);
+            exit();
+        }
     }
         
     /**
@@ -311,7 +322,7 @@ class CoinsnapCf7 {
             $enable = get_post_meta( $post_id, "_cf7_coinsnap_enable", true );
             $paymentFirst = get_post_meta( $post_id, "_cf7_coinsnap_paymentfirst", true );
             
-            if(!$paymentFirst && $enable){
+            if(!$paymentFirst && $enable && sanitize_text_field( filter_input(INPUT_POST,'after_payment',FILTER_VALIDATE_INT) ) !== 1){
                 $this->coinsnap_redirect_payment($cf7);
             }
             else {
@@ -362,7 +373,12 @@ class CoinsnapCf7 {
   
     function coinsnapcf7_payment_validation( $result, $tags ) {
             
-            $post_id = sanitize_text_field( filter_input(INPUT_POST,'_wpcf7',FILTER_VALIDATE_INT) );
+        $post_id = (int)sanitize_text_field( filter_input(INPUT_POST,'_wpcf7',FILTER_VALIDATE_INT) );
+        
+        if((int)sanitize_text_field( filter_input(INPUT_POST,'after_payment',FILTER_VALIDATE_INT) ) === 1){
+            return;
+        }
+        else {    
             $this->_postid = $post_id;
             $is_cs_amount = false;
             
@@ -400,7 +416,8 @@ class CoinsnapCf7 {
                 $errorMessage = esc_html__("Form doesn't contain cs_amount field",'coinsnap-for-contact-form-7');
                 $result->invalidate( $tag_submit, $errorMessage);
             }
-            return $result;
+        return $result;
+        }
     }
         
     public function coinsnapcf7_webhook($cf7){
@@ -520,14 +537,13 @@ class CoinsnapCf7 {
             
         if ( !empty( filter_input(INPUT_POST,'coinsnap_paymentfirst',FILTER_VALIDATE_INT) ) ) {
             $coinsnap_paymentfirst = sanitize_text_field( filter_input(INPUT_POST,'coinsnap_paymentfirst',FILTER_VALIDATE_INT) );
-            update_post_meta( $post_id, "_cf7_coinsnap_paymentfirst", 0 ); //$coinsnap_paymentfirst
+            update_post_meta( $post_id, "_cf7_coinsnap_paymentfirst", $coinsnap_paymentfirst); 
         }
         else {
             update_post_meta( $post_id, "_cf7_coinsnap_paymentfirst", 0 );
         }
 
             update_post_meta( $post_id, "_cf7_coinsnap_currency", sanitize_text_field( filter_input(INPUT_POST,'coinsnap_currency',FILTER_SANITIZE_FULL_SPECIAL_CHARS) ) );
-            
             update_post_meta( $post_id, "_cf7_coinsnap_provider", sanitize_text_field( filter_input(INPUT_POST,'coinsnap_provider',FILTER_SANITIZE_FULL_SPECIAL_CHARS) ) );
             
             update_post_meta( $post_id, "_cf7_coinsnap_store_id", sanitize_text_field( filter_input(INPUT_POST,'coinsnap_store_id',FILTER_SANITIZE_FULL_SPECIAL_CHARS) ) );
@@ -543,7 +559,7 @@ class CoinsnapCf7 {
         try {
             $store = $client->getStore($this->getStoreId());
             
-            if ($store['code'] === 200) {                    
+            if ($store->getData()['code'] === 200) {                    
                 if ( !$this->webhookExists( $this->getApiUrl(), $this->getApiKey(), $this->getStoreId() )) {
                     if ( !$this->registerWebhook( $this->getApiUrl(), $this->getApiKey(), $this->getStoreId() )) {
                         $notice->addNotice('failed', __('Contact Form 7: Unable to create webhook on Coinsnap Server', 'coinsnap-for-contact-form-7'));
@@ -698,12 +714,12 @@ class CoinsnapCf7 {
                           <div class="coinsnapcf7-field"><input id="coinsnap_s_url" class="long-input" type="text" value="' . esc_html($coinsnap_s_url) . '" name="coinsnap_s_url">
                           <div class="description">'. esc_html__('Please enter here the URL of the page on your website that the buyer will be redirected to after he finalizes the transaction. (Note: You must create this page, i.e. a “thank you”-page, yourself on your website!)','coinsnap-for-contact-form-7').'</div> 
                           </div>
-                        </div>';/*
+                        </div>';
 		echo '<div class="coinsnapcf7-row">
                         <div class="coinsnapcf7-field inline-form">
                             <input type="checkbox" value="1" name="coinsnap_paymentfirst" id="coinsnap_paymentfirst" '.esc_html($coinsnap_paymentfirst_checked).'><label for="coinsnap_paymentfirst">'. esc_html__('Payment before e-Mail submission','coinsnap-for-contact-form-7').'</label>
                         </div>
-                    </div>';*/
+                    </div>';
 
 		echo '<div class="coinsnapcf7-row">
                         <div class="coinsnapcf7-field inline-form">
@@ -764,12 +780,35 @@ class CoinsnapCf7 {
 		$email_field     = 'cs_email';
 		
 		$submission_data = $submission->get_posted_data();
+                
+                if($paymentFirst){
+                    
+                    $default_data_array = [
+                        '_site_title' => sanitize_text_field(get_bloginfo('name')),
+                        '_site_url'   => wp_unslash(home_url()),
+                        '_site_admin_email' => get_option('admin_email'),
+                        '_date'       => date_i18n(get_option('date_format')),
+                        '_time'       => date_i18n(get_option('time_format')),
+                        '_remote_ip' => (isset($_SERVER['REMOTE_ADDR']))? sanitize_text_field(wp_unslash($_SERVER['REMOTE_ADDR'])) : '',
+                        '_user_agent' => (isset($_SERVER['HTTP_USER_AGENT']))? sanitize_text_field(wp_unslash($_SERVER['HTTP_USER_AGENT'])) : '',
+                        '_url' => wp_unslash($submission->get_meta('url')),
+                        '_referer' => (isset($_SERVER['HTTP_REFERER']))? sanitize_text_field(wp_unslash($_SERVER['HTTP_REFERER'])) : ''
+                    ];
+                    
+                    foreach($default_data_array as $post_key => $post_value){
+                        if(!isset($submission_data[$post_key])){
+                            $submission_data[sanitize_text_field($post_key)] = sanitize_text_field($post_value);
+                        }
+                    }
+                }
+                
+                $uploaded_files = $submission->uploaded_files();
 		$payment_amount  = $submission_data[ $amount_field ] ?? '0';
 		$currency        = strtoupper(get_post_meta( $post_id, "_cf7_coinsnap_currency", true ));
 		$buyerEmail      = $submission_data[ $email_field ] ?? '';
 		$buyerName       = $submission_data[ $name_field ] ?? '';
-		
-		//  Remove already populated data.
+                
+                //  Remove already populated data.
 		//  $remove = [ $amount_field, $name_field, $email_field ];
 		//  $remainingMetadata = array_diff_key( $submission_data, array_flip( $remove ) );
                 
@@ -778,16 +817,43 @@ class CoinsnapCf7 {
 		$wpdb->insert( $table_name, [
 			'form_id'      => $post_id,
 			'field_values' => wp_json_encode( $submission_data, true ),
+                        'files'        => wp_json_encode( $uploaded_files, true ),
 			'submit_time'  => time(),
 			'name'         => $buyerName,
 			'email'        => $buyerEmail,
 			'amount'       => $payment_amount,
-		], ['%d', '%s', '%s', '%s', '%s', '%f']   );
+                        'status'       => 'Pending'
+		], ['%d', '%s', '%s', '%s', '%s', '%s', '%f', '%s']   );
                 
 		if ( $wpdb->last_error != '' ) {
 			echo esc_html($wpdb->last_error);
 			exit;
 		}
+                
+                $invoice_no = $wpdb->insert_id;
+                
+                if(is_array($uploaded_files) && count($uploaded_files) > 0 && $paymentFirst){
+                    $upload_dir = wp_upload_dir();
+                    $dir = $upload_dir['basedir'] . '/cf7-payments/' . $invoice_no;
+                    wp_mkdir_p($dir);
+                    $stored_files = [];
+                    foreach ($uploaded_files as $field => $path) {
+                        
+                        if (!isset($path[0]) || !file_exists($path[0])){ continue; }
+                        $new_path = $dir . '/' . basename($path[0]);
+                        copy($path[0], $new_path);
+                        $stored_files[$field] = $new_path;
+                    }
+                    
+                    if(count($stored_files) > 0){
+                        
+                        $wpdb->update( $table_name, array('files' => wp_json_encode( $stored_files, true )),array( 'id' => $invoice_no ), array( '%s', '%s' ), array( '%d' ));
+                        
+                    }
+
+
+                }
+                
                 
                 $amount = round( $payment_amount, 2 );
                 $client  = new \Coinsnap\Client\Invoice( $this->getApiUrl(), $this->getApiKey() );
@@ -797,7 +863,7 @@ class CoinsnapCf7 {
                 if($checkInvoice['result'] === true){
 
                     $return_url = get_post_meta( $post_id, "_cf7_coinsnap_s_url", true );
-                    $invoice_no               = $wpdb->insert_id;
+                    
 		
                     $metadata                 = [];
                     $metadata['orderNumber']  = $invoice_no;
@@ -852,6 +918,7 @@ class CoinsnapCf7 {
 
                         $payurl = $csinvoice->getData()['checkoutLink'];
                         wp_redirect( $payurl );
+                        exit();
                     }
                     catch (\Throwable $e){
                         $errorMessage = __( 'API connection is not established', 'coinsnap-for-contact-form-7' );
@@ -867,8 +934,7 @@ class CoinsnapCf7 {
 
 	}
 
-    public function get_tablename()
-    {
+    public function get_tablename() {
         global $wpdb;
         return $wpdb->prefix . "coinsnapcf7_extension";
     }
@@ -879,8 +945,6 @@ class CoinsnapCf7 {
 
         //  cf7-listener get parameter check
         if ( filter_input(INPUT_GET,'cf7-listener',FILTER_SANITIZE_FULL_SPECIAL_CHARS) === null  || filter_input(INPUT_GET,'cf7-listener',FILTER_SANITIZE_FULL_SPECIAL_CHARS) !== 'coinsnap' ) { return; }
-        
-        
         
         //  form_id get parameter check
         $form_id = filter_input(INPUT_GET,'form_id',FILTER_VALIDATE_INT);
@@ -934,22 +998,38 @@ class CoinsnapCf7 {
                 }
 
                 $invoice_id = $postData->invoiceId;
+                $payload_type = $postData->type;
 
                 $client = new \Coinsnap\Client\Invoice( $this->getApiUrl(), $this->getApiKey() );			
                 $csinvoice = $client->getInvoice($this->getStoreId(), $invoice_id);
                 $status    = $csinvoice->getData()['status'];
                 $order_id = ($this->get_payment_provider() === 'btcpay')? $csinvoice->getData()['metadata']['orderId'] : $csinvoice->getData()['orderId'];
-
+                
                 $payment_res = $csinvoice->getData();
                 unset( $payment_res['qrCodes'] );
                 unset( $payment_res['lightningInvoice'] );
+                
                 $table_name = $this->get_tablename();
-                $wpdb->update( $table_name, array(
-			'payment_details' => wp_json_encode( $payment_res, true ),
-			'status'          => $status
-		),
-			array( 'id' => $order_id ), array( '%s', '%s' ), array( '%d' )
-		);
+                
+                $wpdb->update( $table_name, 
+                    [
+                        'payment_details' => wp_json_encode( $payment_res, true ),
+                        'status' => $status
+                    ], array( 'id' => $order_id ), array( '%s', '%s' ), array( '%d' ));
+                
+                $paymentFirst = get_post_meta( $form_id, "_cf7_coinsnap_paymentfirst", true );
+                
+                if($paymentFirst > 0 && ($payload_type === 'Settled' || $payload_type === 'InvoiceSettled')){
+                    
+                    $order_data = $wpdb->get_row( $wpdb->prepare( "SELECT * FROM %i WHERE id=%d", $table_name, $order_id ), ARRAY_A );
+                    
+                    $mail_send_result = $this->cf7_mail_send($form_id,$order_data);//cf7_mail_send
+                    $update_array = [
+                        'message' => $mail_send_result['message'],
+                        'form_sent' => ($mail_send_result['result'] > 0)? 1 : 0
+                    ];
+                    $wpdb->update( $table_name, $update_array, array( 'id' => $order_id ), array( '%s', '%s' ), array( '%d' ));
+                }
 
                 echo "OK";
                 exit;
@@ -960,11 +1040,96 @@ class CoinsnapCf7 {
         }
         
         catch (\Throwable $e) {
-            
             $errorMessage = __('Webhook payload error', 'coinsnap-for-contact-form-7' );
-            
             wp_die('Internal server error', '', ['response' => 500]);
         }
+    }
+    /*
+    public function cf7_emulate_send($form_id,$order_data){
+
+        $contact_form = WPCF7_ContactForm::get_instance($form_id);
+
+        // Sent values
+        $body = json_decode($order_data['field_values'],true);
+        
+        $_POST = $body;
+        $_POST['_wpcf7'] = $form_id;
+        $_POST['_wpcf7_unit_tag'] = 'wpcf7-f'.$form_id.'-p0-o1';
+        $_POST['_wpcf7_container_post'] = 0;
+        
+        $files_array = json_decode($order_data['files'],true);
+
+        // attachments
+        add_filter('wpcf7_mail_components', function($components) use ($files_array){
+
+            $valid = [];
+            //  Sent files
+
+            foreach ($files_array as $file) {
+                if (file_exists($file)) {
+                    $valid[] = $file;
+                }
+            }
+
+            $components['attachments'] = implode("\n", $valid);
+
+            return $components;
+        });
+
+        // отключаем spam
+        add_filter('wpcf7_spam', '__return_false');
+
+        //  Submission message
+        $message = 'Submission after payment '. gmdate('Y-m-d H:i:s',time()).
+                ' --------------------------------------- '. wp_json_encode($contact_form,true).
+                ' --------------------------------------- '. wp_json_encode($_POST,true);
+        
+        
+        // отправка как CF7
+        $result = $contact_form->submit(true);
+
+        remove_all_filters('wpcf7_mail_components');
+        remove_all_filters('wpcf7_spam');
+        
+        $result_array = array('result' => $result,'message' => $message);
+
+        return $result_array;
+    }*/
+    
+    public function cf7_mail_send($form_id,$order_data){
+        
+        $contact_form = WPCF7_ContactForm::get_instance($form_id);
+        $mail = $contact_form->prop('mail');
+        
+        // Sent values
+        $body = json_decode($order_data['field_values'],true);
+        
+        //  Template with sent values replace
+        foreach($body as $bkey => $bvalue){
+            $mail['body'] = str_replace("[".$bkey."]", $bvalue, $mail['body']);
+            $mail['subject'] = str_replace("[".$bkey."]", $bvalue, $mail['subject']);
+            $mail['sender'] = str_replace("[".$bkey."]", $bvalue, $mail['sender']);
+            $mail['recipient'] = str_replace("[".$bkey."]", $bvalue, $mail['recipient']);
+            $mail['additional_headers'] = str_replace("[".$bkey."]", $bvalue, $mail['additional_headers']);
+        }
+
+        //  Sent files
+        $files_array = json_decode($order_data['files'],true);
+
+        if(count($files_array) > 0){
+            $attachments = array();
+            foreach($files_array as $_file){ $attachments[] = $_file; }
+            $mail['attachments'] = implode("\n", $attachments);
+        }
+        
+        //  Submission message
+        $message = 'Submission after payment '. gmdate('Y-m-d H:i:s',time()).' --------------------------------------- '. wp_json_encode($mail,true);
+                    
+        // Run submission
+        $result = WPCF7_Mail::send($mail,'mail');
+        $result_array = array('result' => $result,'message' => $message);
+        
+        return $result_array;
     }
     
     public function get_payment_provider() {
