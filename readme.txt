@@ -1,8 +1,8 @@
 === Bitcoin Payment for Contact Form 7 ===
 Contributors: coinsnap
 Tags:  Coinsnap, Contact Form 7, Bitcoin, Lightning
-Tested up to: 6.9
-Stable tag: 1.5.2
+Tested up to: 7.0
+Stable tag: 1.5.3
 License: GPLv2
 License URI: http://www.gnu.org/licenses/gpl-2.0.html
 
@@ -23,7 +23,7 @@ Coinsnap’s Bitcoin payment plugin for Contact Form 7 makes it amazingly simple
 
 = Accept Bitcoin payments with Contact Form 7 in only 3 steps: =
 
-* Get your [free Coinsnap account](https://app.coinsnap.io/register) with just your email
+* Get your [free Coinsnap account](https://app.coinsnap.io/) with just your email
 * Install, activate and configure the plugin in your WordPress backend ([see the installation guide](https://coinsnap.io/modules/contact-form-7/contact-form-7-installation-guide/))
 * Create payment forms in Contact Forms 7, place them at the appropraite places on your WordPress website and accept Bitcoin payments from your customers
 
@@ -60,8 +60,8 @@ Coinsnap’s Bitcoin payment plugin for Contact Form 7 makes it amazingly simple
 = More information: =
 
 * Contact Form 7 Coinsnap Demo Site: [https://contactform7.coinsnap.org/](https://contactform7.coinsnap.org/)
-* Blog Article: [https://coinsnap.io/modules/contact-form-7/](https://coinsnap.io/modules/contact-form-7/)
-* WordPress: [https://wordpress.org/plugins/coinsnap-for-contact-form-7/](https://wordpress.org/plugins/coinsnap-for-contact-form-7/)
+* Blog Article: [https://coinsnap.io/wp-add-ons/contact-form-7/](https://coinsnap.io/wp-add-ons/contact-form-7/)
+* Installation Guide: [https://coinsnap.io/user-guides/wpforms-bitcoin-user-guide/](https://coinsnap.io/user-guides/wpforms-bitcoin-user-guide/) 
 * GitHub: [https://github.com/Coinsnap/Coinsnap-for-Contactform7](https://github.com/Coinsnap/Coinsnap-for-Contactform7)
 
 
@@ -69,7 +69,7 @@ Coinsnap’s Bitcoin payment plugin for Contact Form 7 makes it amazingly simple
 
 * [Coinsnap API (1.0) documentation](https://docs.coinsnap.io/)
 * [Frequently Asked Questions](https://coinsnap.io/help/coinsnap-faq/) 
-* [Terms and Conditions](https://coinsnap.io/info/general-terms-and-conditions/)
+* [Terms of Service](https://coinsnap.io/info/terms-of-service/)
 * [Privacy Policy](https://coinsnap.io/info/privacy-policy/)
 
 
@@ -144,7 +144,7 @@ https://github.com/Coinsnap/Coinsnap-for-Contactform7
 
 == Frequently Asked Questions ==
 
-Plugin's page on Coinsnap website: https://coinsnap.io/modules/contact-form-7/
+Plugin's page on Coinsnap website: https://coinsnap.io/wp-add-ons/contact-form-7/
 
 
 == Screenshots ==
@@ -237,3 +237,7 @@ Plugin's page on Coinsnap website: https://coinsnap.io/modules/contact-form-7/
 = 1.5.2 :: 2026-03-19 =
 * Updated webhook payload handler.
 * Updated currency rates handler functionality.
+
+= 1.5.3 :: 2026-05-23 =
+* Compatibility with Wordpress 7.0 is tested.
+* Compatibility with Contact Form 7 6.1.6 is tested.
