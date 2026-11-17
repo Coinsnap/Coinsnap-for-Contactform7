@@ -131,17 +131,6 @@ class Webhook extends AbstractClient {
         }
     }
 
-    //  Check if the request your received from a webhook is authentic and can be trusted.
-    public static function isIncomingWebhookRequestValid(string $requestBody, string $coinsnapSignatureHeader, string $secret): bool{
-        if ($requestBody && $coinsnapSignatureHeader) {            
-            $expectedHeader = 'sha256='.hash_hmac('sha256', $requestBody, $secret);
-            if ($expectedHeader === $coinsnapSignatureHeader) {
-                return true;
-            }
-        }
-        return false;
-    }
-
     public function deleteWebhook(string $storeId, string $webhookId): void {
         $url = $this->getApiUrl() . ''.COINSNAP_SERVER_PATH.'/' . urlencode($storeId) . '/webhooks/' . urlencode($webhookId);
         $headers = $this->getRequestHeaders();
