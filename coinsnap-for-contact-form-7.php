@@ -33,13 +33,15 @@ if(!defined( 'WPCF7_LOAD_JS' )){define( 'WPCF7_LOAD_JS', false );}
 register_activation_hook( __FILE__, "coinsnapcf7_activate" );
 register_deactivation_hook( __FILE__, "coinsnapcf7_deactivate" );
 
+require_once( plugin_dir_path( __FILE__ ) . 'class-coinsnapcf7-security.php' );
+
 class cf7_coinsnap {
     public static function load() {
-        if(sanitize_text_field( filter_input(INPUT_POST,'after_payment',FILTER_VALIDATE_INT) ) !== 1){
-            require_once( plugin_dir_path( __FILE__ ) . 'library/loader.php' );
-            require_once( 'coinsnapcf7-class.php' );
-            CoinsnapCf7::get_instance();
-        }
+        // Always loaded: a posted "after_payment" field used to switch the payment off.
+        require_once( plugin_dir_path( __FILE__ ) . 'library/loader.php' );
+        require_once( plugin_dir_path( __FILE__ ) . 'coinsnapcf7-class.php' );
+        CoinsnapCf7_Security::install(); // creates the invoice table after an update (no-op once done)
+        CoinsnapCf7::get_instance();
     }
 }
 
@@ -67,12 +69,16 @@ function coinsnapcf7_activate() {
         require_once( ABSPATH . 'wp-admin/includes/upgrade.php' );
         dbDelta( $sql );
     }
+    CoinsnapCf7_Security::install( true );
 }
 
 function coinsnapcf7_deactivate() {
 	global $wpdb;
 	$table_name = $wpdb->prefix . "coinsnapcf7_extension";
 	$wpdb->query( $wpdb->prepare( "DROP TABLE IF EXISTS %i", $table_name ) );
+	// The entries are dropped above, so their invoice records go too.
+	$wpdb->query( $wpdb->prepare( "DROP TABLE IF EXISTS %i", CoinsnapCf7_Security::table() ) );
+	delete_option( CoinsnapCf7_Security::DB_VERSION_KEY );
 	delete_option( 'coinsnapcf7_check_show_warning' );
 }
 
@@ -98,11 +104,6 @@ function coinsnapcf7_dependency_notice() {?>
 
 add_action('init', function() {
     
-//  Session launcher
-    if ( ! session_id() ) {
-        session_start();
-    }
-    
 // Setting up and handling custom endpoint for api key redirect from BTCPay Server.
     add_rewrite_endpoint('coinsnap-for-cf7-btcpay-settings-callback', EP_ROOT);
 });
@@ -110,8 +111,8 @@ add_action('init', function() {
 // To be able to use the endpoint without appended url segments we need to do this.
 add_filter('request', function($vars) {
     if (isset($vars['coinsnap-for-cf7-btcpay-settings-callback'])) {
+        // The callback is proven by the one-time state from the wizard, checked in CoinsnapCf7::btcpayCallback().
         $vars['coinsnap-for-cf7-btcpay-settings-callback'] = true;
-        $vars['coinsnap-for-cf7-btcpay-nonce'] = wp_create_nonce('coinsnapcf7-btcpay-nonce');
     }
     return $vars;
 });

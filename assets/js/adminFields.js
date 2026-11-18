@@ -14,13 +14,14 @@ jQuery(document).ready(function ($) {
             $('.coinsnapcf7-btcpay').hide();
             $('.coinsnapcf7-btcpay input').removeAttr('required');
             $('.coinsnapcf7-coinsnap').show();
-            $('.coinsnapcf7-coinsnap input').attr('required','required');
+            // Key fields stay empty when a key is saved (an empty field keeps it), so they are never required.
+            $('.coinsnapcf7-coinsnap input:not([type=password])').attr('required','required');
         }
         else {
             $('.coinsnapcf7-coinsnap').hide();
             $('.coinsnapcf7-coinsnap input').removeAttr('required');
             $('.coinsnapcf7-btcpay').show();
-            $('.coinsnapcf7-btcpay input').attr('required','required');
+            $('.coinsnapcf7-btcpay input:not([type=password])').attr('required','required');
         }
     }
     
@@ -32,7 +33,6 @@ jQuery(document).ready(function ($) {
             }
 	}
         catch (e) {
-            console.error(e);
             return false;
 	}
         return true;
