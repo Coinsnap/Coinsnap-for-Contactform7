@@ -30,91 +30,71 @@ class CoinsnapCf7 {
             add_action( 'wp_ajax_cf7_btcpay_server_apiurl_handler', [$this, 'btcpayApiUrlHandler']);
         }
         
-        // Adding template redirect handling for coinsnap-for-cf7-btcpay-settings-callback.
-        add_action( 'template_redirect', function(){
-    
-            global $wp_query;
-            $notice = new \Coinsnap\Util\Notice();
-            
-            $post_id = $this->_postid = filter_input(INPUT_GET,'cf7_post',FILTER_SANITIZE_STRING);
+        // BTCPay posts the new API key back to this public URL. The proof is the one-time state created
+        // when the admin started the wizard; the key's store and permissions are asked from BTCPay.
+        add_action( 'template_redirect', array( $this, 'btcpayCallback' ) );
+    }
 
-            // Only continue on a coinsnap-for-cf7-btcpay-settings-callback request.    
-            if (!isset( $wp_query->query_vars['coinsnap-for-cf7-btcpay-settings-callback'])) {
-                return;
-            }
-            
-            if(!isset($wp_query->query_vars['coinsnap-for-cf7-btcpay-nonce']) || !wp_verify_nonce($wp_query->query_vars['coinsnap-for-cf7-btcpay-nonce'],'coinsnapcf7-btcpay-nonce')){
-                return;
-            }
+    public function btcpayCallback(){
+        global $wp_query;
+        // phpcs:ignore WordPress.Security.NonceVerification.Recommended -- the one-time state is the proof
+        if ( !isset( $_GET['coinsnap-for-cf7-btcpay-settings-callback'] ) && !isset( $wp_query->query_vars['coinsnap-for-cf7-btcpay-settings-callback'] ) ) {
+            return;
+        }
 
-            $CoinsnapBTCPaySettingsUrl = admin_url('admin.php?page=wpcf7&post='.$post_id.'&active-tab=coinsnap&provider=btcpay');
+        // phpcs:ignore WordPress.Security.NonceVerification.Recommended
+        $state = isset( $_GET['state'] ) ? sanitize_text_field( wp_unslash( $_GET['state'] ) ) : '';
+        $pending = CoinsnapCf7_Security::btcpay_consume_state( $state );
+        if ( $pending === null ) {
+            wp_die( esc_html__( 'Unauthorized', 'coinsnap-for-contact-form-7' ), '', ['response' => 403] );
+        }
 
-            $btcpay_server_url = get_post_meta( $post_id, "_cf7_btcpay_server_url", true );
-            $btcpay_api_key  = filter_input(INPUT_POST,'apiKey',FILTER_SANITIZE_FULL_SPECIAL_CHARS);
+        $notice = new \Coinsnap\Util\Notice();
+        $post_id = $this->_postid = $pending['form_id'];
+        $btcpay_server_url = $pending['url'];
+        $CoinsnapBTCPaySettingsUrl = admin_url( 'admin.php?page=wpcf7&post=' . $post_id . '&active-tab=coinsnap&provider=btcpay' );
 
-            $client = new \Coinsnap\Client\Store($btcpay_server_url,$btcpay_api_key);
-            if (count($client->getStores()) < 1) {
-                $messageAbort = __('Error on verifying redirected API Key with stored BTCPay Server url. Aborting API wizard. Please try again or continue with manual setup.', 'coinsnap-for-contact-form-7');
-                $notice->addNotice('error', $messageAbort);
-                wp_redirect($CoinsnapBTCPaySettingsUrl);
-                exit();
-            }
-
-            // Data does get submitted with url-encoded payload, so parse $_POST here.
-            if (!empty($_POST)) {
-                $data['apiKey'] = filter_input(INPUT_POST,'apiKey',FILTER_SANITIZE_FULL_SPECIAL_CHARS) ?? null;
-                if(isset($_POST['permissions'])){
-                    $permissions = array_map('sanitize_text_field', wp_unslash($_POST['permissions']));
-                    if(is_array($permissions)){
-                        foreach ($permissions as $key => $value) {
-                            $data['permissions'][$key] = sanitize_text_field($permissions[$key] ?? null);
-                        }
-                    }
-                }
-            }
-    
-            if (isset($data['apiKey']) && isset($data['permissions'])) {
-
-                $apiData = new \Coinsnap\Client\BTCPayApiAuthorization($data);
-                if ($apiData->hasSingleStore() && $apiData->hasRequiredPermissions()) {
-
-                    update_post_meta( $post_id, "_cf7_btcpay_api_key", $apiData->getApiKey());
-                    update_post_meta( $post_id, "_cf7_btcpay_store_id", $apiData->getStoreID());
-                    update_post_meta( $post_id, "_cf7_coinsnap_provider", 'btcpay');
-
-                    $notice->addNotice('success', __('Successfully received api key and store id from BTCPay Server API. Please finish setup by saving this settings form.', 'coinsnap-for-contact-form-7'));
-
-                    // Register a webhook.
-                    if ($this->registerWebhook( $btcpay_server_url, $apiData->getApiKey(), $apiData->getStoreID())) {
-                        $messageWebhookSuccess = __( 'Successfully registered a new webhook on BTCPay Server.', 'coinsnap-for-contact-form-7' );
-                        $notice->addNotice('success', $messageWebhookSuccess);
-                    }
-                    else {
-                        $messageWebhookError = __( 'Could not register a new webhook on the store.', 'coinsnap-for-contact-form-7' );
-                        $notice->addNotice('error', $messageWebhookError );
-                    }
-
-                    wp_redirect($CoinsnapBTCPaySettingsUrl);
-                    exit();
-                }
-                else {
-                    $notice->addNotice('error', __('Please make sure you only select one store on the BTCPay API authorization page.', 'coinsnap-for-contact-form-7'));
-                    wp_redirect($CoinsnapBTCPaySettingsUrl);
-                    exit();
-                }
-            }
-
-            $notice->addNotice('error', __('Error processing the data from Coinsnap. Please try again.', 'coinsnap-for-contact-form-7'));
-            wp_redirect($CoinsnapBTCPaySettingsUrl);
+        // phpcs:ignore WordPress.Security.NonceVerification.Missing
+        $btcpay_api_key = isset( $_POST['apiKey'] ) ? sanitize_text_field( wp_unslash( $_POST['apiKey'] ) ) : '';
+        $store_id = CoinsnapCf7_Security::btcpay_verify_key( $btcpay_server_url, $btcpay_api_key );
+        if ( $store_id === null ) {
+            $notice->addNotice( 'error', __( 'The BTCPay API key was refused: it must be limited to one store and have exactly the permissions this plugin asks for. Please try again or continue with manual setup.', 'coinsnap-for-contact-form-7' ) );
+            wp_safe_redirect( $CoinsnapBTCPaySettingsUrl );
             exit();
-        });
+        }
+
+        update_post_meta( $post_id, "_cf7_btcpay_server_url", $btcpay_server_url );
+        update_post_meta( $post_id, "_cf7_btcpay_api_key", $btcpay_api_key );
+        update_post_meta( $post_id, "_cf7_btcpay_store_id", $store_id );
+        update_post_meta( $post_id, "_cf7_coinsnap_provider", 'btcpay' );
+
+        $notice->addNotice( 'success', __( 'Successfully received api key and store id from BTCPay Server API. Please finish setup by saving this settings form.', 'coinsnap-for-contact-form-7' ) );
+
+        if ( $this->registerWebhook( $btcpay_server_url, $btcpay_api_key, $store_id ) ) {
+            $notice->addNotice( 'success', __( 'Successfully registered a new webhook on BTCPay Server.', 'coinsnap-for-contact-form-7' ) );
+        }
+        else {
+            $notice->addNotice( 'error', __( 'Could not register a new webhook on the store.', 'coinsnap-for-contact-form-7' ) );
+        }
+        wp_safe_redirect( $CoinsnapBTCPaySettingsUrl );
+        exit();
+    }
+
+    /** Capability to change this form's payment settings; checked with the nonce before any side effect (6.5). */
+    private function canEditForm( $post_id ): bool {
+        $post_id = (int) $post_id;
+        return $post_id > 0 && get_post_type( $post_id ) === 'wpcf7_contact_form' && current_user_can( 'wpcf7_edit_contact_form', $post_id );
     }
     
     public function coinsnapConnectionHandler(){
-        $post_id = filter_input(INPUT_POST,'cf7_post',FILTER_SANITIZE_STRING);
+        $post_id = (int) filter_input(INPUT_POST,'cf7_post',FILTER_VALIDATE_INT);
+        $_nonce = sanitize_text_field( (string) filter_input(INPUT_POST,'_wpnonce',FILTER_UNSAFE_RAW) );
+
+        // Nonce and capability before any API call or webhook change (6.5).
+        if ( !wp_verify_nonce( $_nonce, 'coinsnap-ajax-nonce' ) || !$this->canEditForm( $post_id ) ) {
+            wp_send_json( ['result' => false, 'message' => __( 'Unauthorized', 'coinsnap-for-contact-form-7' )], 403 );
+        }
         $this->_postid = $post_id;
-        
-        $_nonce = filter_input(INPUT_POST,'_wpnonce',FILTER_SANITIZE_STRING);
         
         if(empty($this->getApiUrl()) || empty($this->getApiKey())){
             $response = [
@@ -172,7 +152,7 @@ class CoinsnapCf7 {
             __('Contact Form 7: Coinsnap server is connected', 'coinsnap-for-contact-form-7') : 
             __('Contact Form 7: BTCPay server is connected', 'coinsnap-for-contact-form-7');
         
-        if( wp_verify_nonce($_nonce,'coinsnap-ajax-nonce') ){
+        {
             $response = ['result' => false,'message' => $_message_disconnected];
 
             try {
@@ -197,12 +177,11 @@ class CoinsnapCf7 {
                 $response['message'] = $webhook ? $_message_connected.' ('.$connectionData.')' : $_message_disconnected.' (Webhook)';
             }
             catch (\Throwable $e) {
-                //$response['message'] = $e->getMessage();
                 $response['message'] =  __('Contact Form 7: API connection is not established (0+)', 'coinsnap-for-contact-form-7');
             }
 
             $this->sendJsonResponse($response);
-        }      
+        }
     }
 
     private function sendJsonResponse(array $response): void {
@@ -217,15 +196,17 @@ class CoinsnapCf7 {
 	wp_enqueue_style( 'coinsnap-admin-styles' );
         //  Enqueue admin fileds handler script
         
-        if('wpcf7' === filter_input(INPUT_GET,'page',FILTER_SANITIZE_FULL_SPECIAL_CHARS) && filter_input(INPUT_GET,'post',FILTER_VALIDATE_INT) > 0){
-            wp_enqueue_script('coinsnap-admin-fields',plugins_url('assets/js/adminFields.js', __FILE__ ),[ 'jquery' ],COINSNAPCF7_VERSION,true);
+        // The scripts and their nonce only on a form's editor, for users who may edit that form.
+        $post_id = (int) filter_input(INPUT_GET,'post',FILTER_VALIDATE_INT);
+        if('wpcf7' !== filter_input(INPUT_GET,'page',FILTER_SANITIZE_FULL_SPECIAL_CHARS) || !$this->canEditForm( $post_id )){
+            return;
         }
-        
+        wp_enqueue_script('coinsnap-admin-fields',plugins_url('assets/js/adminFields.js', __FILE__ ),[ 'jquery' ],COINSNAPCF7_VERSION,true);
         wp_enqueue_script('coinsnap-connection-check',plugin_dir_url( __FILE__ ) . 'assets/js/connectionCheck.js',[ 'jquery' ],COINSNAPCF7_VERSION,true);
         wp_localize_script('coinsnap-connection-check', 'coinsnap_ajax', array(
             'ajax_url' => admin_url('admin-ajax.php'),
             'nonce'  => wp_create_nonce( 'coinsnap-ajax-nonce' ),
-            'cf7_post' => sanitize_text_field( filter_input(INPUT_GET,'post',FILTER_VALIDATE_INT) )
+            'cf7_post' => $post_id
         ));
     }
     
@@ -233,53 +214,34 @@ class CoinsnapCf7 {
      * Handles the BTCPay server AJAX callback from the settings form.
      */
     public function btcpayApiUrlHandler() {
-        $post_id = filter_input(INPUT_POST,'cf7_post',FILTER_SANITIZE_STRING);
-        $_nonce = filter_input(INPUT_POST,'apiNonce',FILTER_SANITIZE_STRING);
-        if ( !wp_verify_nonce( $_nonce, 'coinsnap-ajax-nonce' ) ) {
+        $post_id = (int) filter_input(INPUT_POST,'cf7_post',FILTER_VALIDATE_INT);
+        $_nonce = sanitize_text_field( (string) filter_input(INPUT_POST,'apiNonce',FILTER_UNSAFE_RAW) );
+        if ( !wp_verify_nonce( $_nonce, 'coinsnap-ajax-nonce' ) || !$this->canEditForm( $post_id ) ) {
             wp_die('Unauthorized!', '', ['response' => 401]);
         }
-        
-        if ( current_user_can( 'manage_options' ) ) {
-            $host = filter_var(filter_input(INPUT_POST,'host',FILTER_SANITIZE_STRING), FILTER_VALIDATE_URL);
 
-            if ($host === false || (substr( $host, 0, 7 ) !== "http://" && substr( $host, 0, 8 ) !== "https://")) {
-                wp_send_json_error("Error validating BTCPayServer URL.");
-            }
+        $host = CoinsnapCf7_Security::clean_server_url( wp_unslash( (string) filter_input(INPUT_POST,'host',FILTER_UNSAFE_RAW) ) );
+        if ($host === '') {
+            wp_send_json_error("Error validating BTCPayServer URL.");
+        }
 
-            $permissions = array_merge([
-		'btcpay.store.canviewinvoices',
-		'btcpay.store.cancreateinvoice',
-		'btcpay.store.canviewstoresettings',
-		'btcpay.store.canmodifyinvoices'
-            ],
-            [
-		'btcpay.store.cancreatenonapprovedpullpayments',
-		'btcpay.store.webhooks.canmodifywebhooks',
-            ]);
-
-            try {
-		// Create the redirect url to BTCPay instance.
-		$url = \Coinsnap\Client\BTCPayApiKey::getAuthorizeUrl(
-                    $host,
-                    $permissions,
-                    'ContactForm7',
-                    true,
-                    true,
-                    home_url('?coinsnap-for-cf7-btcpay-settings-callback&cf7_post='.$post_id),
-                    null
-		);
-
-		// Store the host to options before we leave the site.
-		update_post_meta( $post_id, "_cf7_btcpay_server_url", $host);
-
-		// Return the redirect url.
-		wp_send_json_success(['url' => $url]);
-            }
-            
-            catch (\Throwable $e) {
-                Logger::debug('Error fetching redirect url from BTCPay Server.');
-            }
-	}
+        try {
+            // The URL is kept with the one-time state and saved only together with a key BTCPay confirms (6.14).
+            $state = CoinsnapCf7_Security::btcpay_start_state( $post_id, $host );
+            $url = \Coinsnap\Client\BTCPayApiKey::getAuthorizeUrl(
+                $host,
+                CoinsnapCf7_Security::BTCPAY_PERMISSIONS,
+                'ContactForm7',
+                true,
+                true,
+                add_query_arg( ['coinsnap-for-cf7-btcpay-settings-callback' => '1', 'state' => $state], home_url( '/' ) ),
+                'coinsnap-for-contact-form-7'
+            );
+            wp_send_json_success(['url' => $url]);
+        }
+        catch (\Throwable $e) {
+            CoinsnapCf7_Security::log('info', 'btcpay authorize url failed');
+        }
         wp_send_json_error("Error processing Ajax request.");
     }
         
@@ -296,7 +258,7 @@ class CoinsnapCf7 {
         $enable = get_post_meta( $post_id, "_cf7_coinsnap_enable", true );
         $paymentFirst = get_post_meta( $post_id, "_cf7_coinsnap_paymentfirst", true );
             
-        if($paymentFirst && $enable && sanitize_text_field( filter_input(INPUT_POST,'after_payment',FILTER_VALIDATE_INT) ) !== 1){
+        if($paymentFirst && $enable){
             
             $submission = WPCF7_Submission::get_instance();
 
@@ -322,7 +284,7 @@ class CoinsnapCf7 {
             $enable = get_post_meta( $post_id, "_cf7_coinsnap_enable", true );
             $paymentFirst = get_post_meta( $post_id, "_cf7_coinsnap_paymentfirst", true );
             
-            if(!$paymentFirst && $enable && sanitize_text_field( filter_input(INPUT_POST,'after_payment',FILTER_VALIDATE_INT) ) !== 1){
+            if(!$paymentFirst && $enable){
                 $this->coinsnap_redirect_payment($cf7);
             }
             else {
@@ -372,52 +334,61 @@ class CoinsnapCf7 {
     }
   
     function coinsnapcf7_payment_validation( $result, $tags ) {
-            
-        $post_id = (int)sanitize_text_field( filter_input(INPUT_POST,'_wpcf7',FILTER_VALIDATE_INT) );
-        
-        if((int)sanitize_text_field( filter_input(INPUT_POST,'after_payment',FILTER_VALIDATE_INT) ) === 1){
-            return;
+
+        $contact_form = WPCF7_ContactForm::get_current();
+        $post_id = $contact_form ? (int) $contact_form->id() : 0;
+        if ( $post_id < 1 || !get_post_meta( $post_id, "_cf7_coinsnap_enable", true ) ) {
+            return $result; // Coinsnap isn't enabled on this form
         }
-        else {    
-            $this->_postid = $post_id;
-            $is_cs_amount = false;
-            
-            foreach($tags as $tag){
-                if('cs_amount' === $tag->name){
-                    $is_cs_amount = true;
-                    $amount = (float)filter_input(INPUT_POST,'cs_amount',FILTER_SANITIZE_FULL_SPECIAL_CHARS) ;
-                    $currency = get_post_meta( $post_id, "_cf7_coinsnap_currency", true );
-                    
-                    $checkInvoice = $this->coinsnapcf7_amount_validation( $amount, $currency );
-                    
-                    if($checkInvoice['result'] !== true){
-                        if($checkInvoice['error'] === 'currencyError'){
-                            $errorMessage = sprintf( 
-                            /* translators: 1: Currency */
-                            __( 'Currency %1$s is not supported by Coinsnap', 'coinsnap-for-contact-form-7' ), strtoupper( $currency ));
-                        }      
-                        elseif($checkInvoice['error'] === 'amountError'){
-                            $errorMessage = sprintf( 
-                            /* translators: 1: Amount, 2: Currency */
-                            __( 'Invoice amount cannot be less than %1$s %2$s', 'coinsnap-for-contact-form-7' ), $checkInvoice['min_value'], strtoupper( $currency ));
-                        }
-                        else {
-                            $errorMessage = $checkInvoice['error'];
-                        }
-                        $result->invalidate( $tag, $errorMessage);
-                    }
-                }
-                
-                if('submit' === $tag->type){
-                    $tag_submit = $tag;
-                }
+        $this->_postid = $post_id;
+        $submission = WPCF7_Submission::get_instance();
+        $posted = $submission ? (array) $submission->get_posted_data() : [];
+        $amount_tag = null;
+        $tag_submit = null;
+
+        foreach($tags as $tag){
+            if('cs_amount' === $tag->name){
+                $amount_tag = $tag;
             }
-            if(!$is_cs_amount){
-                $errorMessage = esc_html__("Form doesn't contain cs_amount field",'coinsnap-for-contact-form-7');
-                $result->invalidate( $tag_submit, $errorMessage);
+            if('submit' === $tag->type){
+                $tag_submit = $tag;
             }
+        }
+
+        if($amount_tag === null){
+            if($tag_submit !== null){
+                $result->invalidate( $tag_submit, esc_html__("Form doesn't contain cs_amount field",'coinsnap-for-contact-form-7') );
+            }
+            return $result;
+        }
+
+        // The amount allowed by the form's own cs_amount tag, not just what the browser sent.
+        $amount = CoinsnapCf7_Security::amount_from_form( $contact_form, $posted );
+        if($amount === null){
+            $result->invalidate( $amount_tag, esc_html__( 'Please enter a valid amount.', 'coinsnap-for-contact-form-7' ) );
+            return $result;
+        }
+
+        $currency = get_post_meta( $post_id, "_cf7_coinsnap_currency", true );
+        $checkInvoice = $this->coinsnapcf7_amount_validation( (float) $amount, $currency );
+
+        if($checkInvoice['result'] !== true){
+            if($checkInvoice['error'] === 'currencyError'){
+                $errorMessage = sprintf(
+                /* translators: 1: Currency */
+                __( 'Currency %1$s is not supported by Coinsnap', 'coinsnap-for-contact-form-7' ), strtoupper( $currency ));
+            }
+            elseif($checkInvoice['error'] === 'amountError'){
+                $errorMessage = sprintf(
+                /* translators: 1: Amount, 2: Currency */
+                __( 'Invoice amount cannot be less than %1$s %2$s', 'coinsnap-for-contact-form-7' ), $checkInvoice['min_value'] ?? '', strtoupper( $currency ));
+            }
+            else {
+                $errorMessage = $checkInvoice['error'];
+            }
+            $result->invalidate( $amount_tag, $errorMessage);
+        }
         return $result;
-        }
     }
         
     public function coinsnapcf7_webhook($cf7){
@@ -515,46 +486,73 @@ class CoinsnapCf7 {
 
     function coinsnapcf7_save_settings( $cf7 ) {
 
+        // CF7 checked its own nonce and the capability for this form before saving it. Copies and
+        // programmatic saves carry none of our fields: leave the settings alone then.
+        // phpcs:ignore WordPress.Security.NonceVerification.Missing
+        if ( !isset( $_POST['coinsnap_provider'] ) || !is_object( $cf7 ) || (int) $cf7->id() < 1 ) {
+            return;
+        }
         $notice = new \Coinsnap\Util\Notice();
-        $post_id = sanitize_text_field( filter_input(INPUT_POST,'post',FILTER_VALIDATE_INT) );
+        $post_id = (int) $cf7->id();
         $this->_postid = $post_id;
-            
-        if ( !empty( filter_input(INPUT_POST,'coinsnap_enable',FILTER_VALIDATE_INT) ) ) {
-            $coinsnap_enable = sanitize_text_field( filter_input(INPUT_POST,'coinsnap_enable',FILTER_VALIDATE_INT) );
-            update_post_meta( $post_id, "_cf7_coinsnap_enable", $coinsnap_enable );
+        $field = static function ( $name ) {
+            return trim( sanitize_text_field( (string) filter_input( INPUT_POST, $name, FILTER_UNSAFE_RAW ) ) );
+        };
+
+        update_post_meta( $post_id, "_cf7_coinsnap_enable", filter_input(INPUT_POST,'coinsnap_enable',FILTER_VALIDATE_INT) ? 1 : 0 );
+        update_post_meta( $post_id, "_cf7_coinsnap_autoredirect", filter_input(INPUT_POST,'coinsnap_autoredirect',FILTER_VALIDATE_INT) ? 1 : 0 );
+        update_post_meta( $post_id, "_cf7_coinsnap_paymentfirst", filter_input(INPUT_POST,'coinsnap_paymentfirst',FILTER_VALIDATE_INT) ? 1 : 0 );
+
+        $currency = strtoupper( $field('coinsnap_currency') );
+        if ( in_array( $currency, COINSNAP_CURRENCIES, true ) ) {
+            update_post_meta( $post_id, "_cf7_coinsnap_currency", $currency );
         }
-        else {
-            update_post_meta( $post_id, "_cf7_coinsnap_enable", 0 );
-        }
-            
-        if ( !empty( filter_input(INPUT_POST,'coinsnap_autoredirect',FILTER_VALIDATE_INT) ) ) {
-            $coinsnap_autoredirect = sanitize_text_field( filter_input(INPUT_POST,'coinsnap_autoredirect',FILTER_VALIDATE_INT) );
-            update_post_meta( $post_id, "_cf7_coinsnap_autoredirect", $coinsnap_autoredirect );
-        }
-        else {
-            update_post_meta( $post_id, "_cf7_coinsnap_autoredirect", 0 );
-        }
-            
-        if ( !empty( filter_input(INPUT_POST,'coinsnap_paymentfirst',FILTER_VALIDATE_INT) ) ) {
-            $coinsnap_paymentfirst = sanitize_text_field( filter_input(INPUT_POST,'coinsnap_paymentfirst',FILTER_VALIDATE_INT) );
-            update_post_meta( $post_id, "_cf7_coinsnap_paymentfirst", $coinsnap_paymentfirst); 
-        }
-        else {
-            update_post_meta( $post_id, "_cf7_coinsnap_paymentfirst", 0 );
+        update_post_meta( $post_id, "_cf7_coinsnap_provider", ( $field('coinsnap_provider') === 'btcpay' ) ? 'btcpay' : 'coinsnap' );
+        update_post_meta( $post_id, "_cf7_coinsnap_s_url", esc_url_raw( $field('coinsnap_s_url') ) );
+
+        // Coinsnap: the key field is always shown empty; an empty field keeps the stored key.
+        update_post_meta( $post_id, "_cf7_coinsnap_store_id", $field('coinsnap_store_id') );
+        if ( $field('coinsnap_api_key') !== '' ) {
+            update_post_meta( $post_id, "_cf7_coinsnap_api_key", $field('coinsnap_api_key') );
         }
 
-            update_post_meta( $post_id, "_cf7_coinsnap_currency", sanitize_text_field( filter_input(INPUT_POST,'coinsnap_currency',FILTER_SANITIZE_FULL_SPECIAL_CHARS) ) );
-            update_post_meta( $post_id, "_cf7_coinsnap_provider", sanitize_text_field( filter_input(INPUT_POST,'coinsnap_provider',FILTER_SANITIZE_FULL_SPECIAL_CHARS) ) );
-            
-            update_post_meta( $post_id, "_cf7_coinsnap_store_id", sanitize_text_field( filter_input(INPUT_POST,'coinsnap_store_id',FILTER_SANITIZE_FULL_SPECIAL_CHARS) ) );
-            update_post_meta( $post_id, "_cf7_coinsnap_api_key", sanitize_text_field( filter_input(INPUT_POST,'coinsnap_api_key',FILTER_SANITIZE_FULL_SPECIAL_CHARS) ) );
-            
-            update_post_meta( $post_id, "_cf7_btcpay_server_url", sanitize_text_field( filter_input(INPUT_POST,'btcpay_server_url',FILTER_SANITIZE_FULL_SPECIAL_CHARS) ) );
-            update_post_meta( $post_id, "_cf7_btcpay_store_id", sanitize_text_field( filter_input(INPUT_POST,'btcpay_store_id',FILTER_SANITIZE_FULL_SPECIAL_CHARS) ) );
-            update_post_meta( $post_id, "_cf7_btcpay_api_key", sanitize_text_field( filter_input(INPUT_POST,'btcpay_api_key',FILTER_SANITIZE_FULL_SPECIAL_CHARS) ) );
-            
-            update_post_meta( $post_id, "_cf7_coinsnap_s_url", sanitize_text_field( filter_input(INPUT_POST,'coinsnap_s_url',FILTER_SANITIZE_URL) ) );        
-            
+        // BTCPay: a key is saved only if BTCPay confirms it is limited to the configured store,
+        // and a new server URL drops the stored key unless a working key comes with it (6.14).
+        $old_url   = (string) get_post_meta( $post_id, "_cf7_btcpay_server_url", true );
+        $old_store = (string) get_post_meta( $post_id, "_cf7_btcpay_store_id", true );
+        $old_key   = (string) get_post_meta( $post_id, "_cf7_btcpay_api_key", true );
+        $new_url   = CoinsnapCf7_Security::clean_server_url( $field('btcpay_server_url') );
+        $new_store = $field('btcpay_store_id');
+        $new_key   = $field('btcpay_api_key');
+
+        if ( $new_key !== '' ) {
+            $verified_store = CoinsnapCf7_Security::btcpay_verify_key( $new_url, $new_key, $new_store );
+            if ( $verified_store === null ) {
+                $notice->addNotice( 'error', __( 'Contact Form 7: the BTCPay API key was not saved. It must work on this BTCPay server and be limited to the configured store, with only the permissions this plugin needs.', 'coinsnap-for-contact-form-7' ) );
+            }
+            else {
+                update_post_meta( $post_id, "_cf7_btcpay_server_url", $new_url );
+                update_post_meta( $post_id, "_cf7_btcpay_store_id", $verified_store );
+                update_post_meta( $post_id, "_cf7_btcpay_api_key", $new_key );
+            }
+        }
+        elseif ( $new_url !== rtrim( $old_url, '/' ) ) {
+            update_post_meta( $post_id, "_cf7_btcpay_server_url", $new_url );
+            update_post_meta( $post_id, "_cf7_btcpay_store_id", $new_store );
+            delete_post_meta( $post_id, "_cf7_btcpay_api_key" );
+        }
+        elseif ( $new_store !== $old_store ) {
+            if ( $old_key !== '' && CoinsnapCf7_Security::btcpay_verify_key( $old_url, $old_key, $new_store ) === null ) {
+                $notice->addNotice( 'error', __( 'Contact Form 7: the BTCPay store ID was not changed, because the saved API key is not limited to that store. Please enter a key for the new store.', 'coinsnap-for-contact-form-7' ) );
+            }
+            else {
+                update_post_meta( $post_id, "_cf7_btcpay_store_id", $new_store );
+            }
+        }
+
+        if ( empty( $this->getApiKey() ) || empty( $this->getStoreId() ) || empty( $this->getApiUrl() ) ) {
+            return;
+        }
         $client = new \Coinsnap\Client\Store($this->getApiUrl(), $this->getApiKey());
         try {
             $store = $client->getStore($this->getStoreId());
@@ -595,7 +593,7 @@ class CoinsnapCf7 {
 
     function coinsnapcf7_admin_after_additional_settings( $cf7 ) {
 
-        $post_id = sanitize_text_field( filter_input(INPUT_GET,'post',FILTER_VALIDATE_INT) );
+        $post_id = is_object( $cf7 ) ? (int) $cf7->id() : (int) filter_input(INPUT_GET,'post',FILTER_VALIDATE_INT);
 
         $coinsnap_enable    = get_post_meta( $post_id, "_cf7_coinsnap_enable", true );
         $coinsnap_autoredirect = get_post_meta( $post_id, "_cf7_coinsnap_autoredirect", true );
@@ -673,8 +671,8 @@ class CoinsnapCf7 {
                         </div>';
 		echo '<div class="coinsnapcf7-row coinsnapcf7-coinsnap">
                           <label for="coinsnap_api_key">'. esc_html__('API Key (required)','coinsnap-for-contact-form-7').'</label>
-                          <div class="coinsnapcf7-field"><input id="coinsnap_api_key" class="long-input" type="text" value="' . esc_html($coinsnap_api_key) . '" name="coinsnap_api_key">
-                          <div class="description">'. esc_html__('Please input the API Key that you will find in your Coinsnap account.','coinsnap-for-contact-form-7').'</div>
+                          <div class="coinsnapcf7-field"><input id="coinsnap_api_key" class="long-input" type="password" value="" autocomplete="new-password" placeholder="' . esc_attr( $coinsnap_api_key !== '' ? CoinsnapCf7_Security::secret_hint( (string) $coinsnap_api_key ) : __('Paste your API key','coinsnap-for-contact-form-7') ) . '" name="coinsnap_api_key">
+                          <div class="description">'. esc_html__('Please input the API Key that you will find in your Coinsnap account.','coinsnap-for-contact-form-7').' '. esc_html__('Leave empty to keep the saved key.','coinsnap-for-contact-form-7').'</div>
                           </div>
                         </div>';
                 
@@ -703,8 +701,8 @@ class CoinsnapCf7 {
                         </div>';
 		echo '<div class="coinsnapcf7-row coinsnapcf7-btcpay">
                           <label for="btcpay_api_key">'.esc_html__('API Key (required)','coinsnap-for-contact-form-7').'</label>
-                          <div class="coinsnapcf7-field"><input for="btcpay_api_key" class="long-input" type="text" value="'.esc_html($btcpay_api_key).'" name="btcpay_api_key">
-                          <div class="description">'.esc_html__('Please input the API Key that you will find in your Coinsnap account.','coinsnap-for-contact-form-7').'</div>
+                          <div class="coinsnapcf7-field"><input id="btcpay_api_key" class="long-input" type="password" value="" autocomplete="new-password" placeholder="' . esc_attr( $btcpay_api_key !== '' ? CoinsnapCf7_Security::secret_hint( (string) $btcpay_api_key ) : __('Paste your API key','coinsnap-for-contact-form-7') ) . '" name="btcpay_api_key">
+                          <div class="description">'.esc_html__('Please input the API Key that you will find in your Coinsnap account.','coinsnap-for-contact-form-7').' '. esc_html__('Leave empty to keep the saved key. Changing the BTCPay server URL removes the saved key.','coinsnap-for-contact-form-7').'</div>
                           </div>
                         </div>';
                 
@@ -803,7 +801,12 @@ class CoinsnapCf7 {
                 }
                 
                 $uploaded_files = $submission->uploaded_files();
-		$payment_amount  = $submission_data[ $amount_field ] ?? '0';
+		// The amount allowed by the form's cs_amount tag (fixed value, configured options or min/max), never just the browser's.
+		$payment_amount  = CoinsnapCf7_Security::amount_from_form( $wpcf7, (array) $submission->get_posted_data() );
+		if ( $payment_amount === null ) {
+                    return false;
+		}
+		$submission_data[ $amount_field ] = $payment_amount; // the mail shows what is charged
 		$currency        = strtoupper(get_post_meta( $post_id, "_cf7_coinsnap_currency", true ));
 		$buyerEmail      = $submission_data[ $email_field ] ?? '';
 		$buyerName       = $submission_data[ $name_field ] ?? '';
@@ -826,8 +829,8 @@ class CoinsnapCf7 {
 		], ['%d', '%s', '%s', '%s', '%s', '%s', '%f', '%s']   );
                 
 		if ( $wpdb->last_error != '' ) {
-			echo esc_html($wpdb->last_error);
-			exit;
+			CoinsnapCf7_Security::log( 'info', 'entry insert failed' );
+			return false;
 		}
                 
                 $invoice_no = $wpdb->insert_id;
@@ -855,7 +858,7 @@ class CoinsnapCf7 {
                 }
                 
                 
-                $amount = round( $payment_amount, 2 );
+                $amount = (float) $payment_amount;
                 $client  = new \Coinsnap\Client\Invoice( $this->getApiUrl(), $this->getApiKey() );
                 
                 $checkInvoice = $this->coinsnapcf7_amount_validation( $amount, $currency );
@@ -916,13 +919,19 @@ class CoinsnapCf7 {
                             $walletMessage
                         );
 
-                        $payurl = $csinvoice->getData()['checkoutLink'];
-                        wp_redirect( $payurl );
+                        $invoiceData = $csinvoice->getData();
+                        // Keep what this invoice asks for: the webhook pays the entry only with this record (3, 6.7).
+                        if ( empty( $invoiceData['id'] ) || !CoinsnapCf7_Security::record_invoice( (string) $invoiceData['id'], (int) $invoice_no, (int) $post_id, $this->get_payment_provider(), $camount->__toString(), strtoupper( $currency ) ) ) {
+                            CoinsnapCf7_Security::log( 'info', 'invoice record failed' );
+                            return false;
+                        }
+                        $payurl = $invoiceData['checkoutLink'];
+                        wp_redirect( $payurl ); // phpcs:ignore WordPress.Security.SafeRedirect -- the provider's checkout page
                         exit();
                     }
                     catch (\Throwable $e){
-                        $errorMessage = __( 'API connection is not established', 'coinsnap-for-contact-form-7' );
-                        throw new PaymentGatewayException(esc_html($errorMessage));
+                        CoinsnapCf7_Security::log( 'info', 'invoice create failed' );
+                        return false;
                     }
                 }
                 
@@ -941,109 +950,168 @@ class CoinsnapCf7 {
 
 
     public function process_webhook() {
-        global $wpdb;
 
         //  cf7-listener get parameter check
-        if ( filter_input(INPUT_GET,'cf7-listener',FILTER_SANITIZE_FULL_SPECIAL_CHARS) === null  || filter_input(INPUT_GET,'cf7-listener',FILTER_SANITIZE_FULL_SPECIAL_CHARS) !== 'coinsnap' ) { return; }
-        
-        //  form_id get parameter check
-        $form_id = filter_input(INPUT_GET,'form_id',FILTER_VALIDATE_INT);
-        if ( $form_id < 1 ) {
+        if ( filter_input(INPUT_GET,'cf7-listener',FILTER_SANITIZE_FULL_SPECIAL_CHARS) !== 'coinsnap' ) { return; }
+
+        $form_id = (int) filter_input(INPUT_GET,'form_id',FILTER_VALIDATE_INT);
+        if ( $form_id < 1 || get_post_type( $form_id ) !== 'wpcf7_contact_form' ) {
+            status_header( 404 );
+            exit;
+        }
+        $this->_postid = $form_id;
+        status_header( $this->handle_webhook( $form_id, (string) file_get_contents( 'php://input' ) ) );
+        exit;
+    }
+
+    /** Returns the HTTP status to send. Follows the guide's handler: signature, invoiceId only, API, ownership and amount, act once. */
+    public function handle_webhook( int $form_id, string $rawBody ): int {
+        $this->_postid = $form_id;
+        $provider = $this->get_payment_provider();
+        $isBtcpay = ( $provider === 'btcpay' );
+
+        // 1. Signature over the raw body, with the secret of this form's webhook for its current store.
+        $header = $isBtcpay
+            ? ( isset( $_SERVER['HTTP_BTCPAY_SIG'] ) ? sanitize_text_field( wp_unslash( $_SERVER['HTTP_BTCPAY_SIG'] ) ) : '' )
+            : ( isset( $_SERVER['HTTP_X_COINSNAP_SIGNATURE'] ) ? sanitize_text_field( wp_unslash( $_SERVER['HTTP_X_COINSNAP_SIGNATURE'] ) ) : '' );
+        $secret = CoinsnapCf7_Security::webhook_secret( $form_id, $provider, (string) $this->getStoreId() );
+        $problem = CoinsnapCf7_Security::signature_problem( $provider, $header, $rawBody, $secret, time() );
+        if ( $problem !== null ) {
+            CoinsnapCf7_Security::log( 'security', $problem );
+            return 401;
+        }
+
+        // 2. Only the invoice ID is taken from the body.
+        $data = json_decode( $rawBody, true );
+        $invoice_id = ( is_array( $data ) && is_string( $data['invoiceId'] ?? null ) ) ? $data['invoiceId'] : '';
+        if ( $invoice_id === '' || !preg_match( '/^[A-Za-z0-9_-]{1,64}$/', $invoice_id ) ) {
+            CoinsnapCf7_Security::log( 'info', 'no invoice id' );
+            return 200;
+        }
+        $claimsPaid = in_array( $data['type'] ?? '', ['Settled', 'InvoiceSettled'], true );
+
+        // 3. Fetch the invoice from the API.
+        try {
+            $invoice = CoinsnapCf7_Security::fetch_invoice( (string) $this->getApiUrl(), (string) $this->getApiKey(), (string) $this->getStoreId(), $invoice_id );
+        }
+        catch ( \RuntimeException $e ) {
+            CoinsnapCf7_Security::log( 'info', 'retry: API unavailable', $invoice_id );
+            return 503;
+        }
+        if ( $invoice === null ) {
+            CoinsnapCf7_Security::log( 'info', 'unknown invoice', $invoice_id );
+            return 200;
+        }
+
+        // 4. The invoice must be one this plugin created for an entry of this form.
+        $apiOrderId = $isBtcpay ? ( $invoice['metadata']['orderId'] ?? '' ) : ( $invoice['orderId'] ?? ( $invoice['metadata']['orderNumber'] ?? '' ) );
+        $record = $this->find_invoice_record( $invoice_id, $form_id, $provider, (string) $apiOrderId, $invoice );
+        if ( $record === null ) {
+            CoinsnapCf7_Security::log( 'info', 'not ours', $invoice_id );
+            return 200;
+        }
+        $entry_id = (int) $record['entry_id'];
+
+        $decision = CoinsnapCf7_Security::decide( $invoice, $isBtcpay, (string) $record['amount'], (string) $record['currency'] );
+        if ( $decision === CoinsnapCf7_Security::MISMATCH || ( $decision !== CoinsnapCf7_Security::PAID && $claimsPaid ) ) {
+            $forged = $claimsPaid && ( $invoice['additionalStatus'] ?? '' ) !== 'Marked';
+            CoinsnapCf7_Security::log( $forged ? 'security' : 'info', $forged ? 'forged status' : 'status ' . preg_replace( '/[^A-Za-z]/', '', (string) ( $invoice['status'] ?? '?' ) ), $invoice_id );
+            return 200;
+        }
+
+        $status = (string) $invoice['status'];
+        $payment_res = $invoice;
+        unset( $payment_res['qrCodes'], $payment_res['lightningInvoice'] );
+
+        // 5. Act once, and never move an entry backwards.
+        switch ( $decision ) {
+            case CoinsnapCf7_Security::PAID:
+                if ( !CoinsnapCf7_Security::mark_paid_once( $invoice_id ) ) {
+                    CoinsnapCf7_Security::log( 'info', 'already processed', $invoice_id );
+                    return 200;
+                }
+                // A late real payment still completes an expired entry.
+                $changed = $this->update_entry_status( $entry_id, 'Settled', ['Pending', 'New', 'Processing', 'Expired', 'Invalid'], $payment_res );
+                if ( $changed && get_post_meta( $form_id, "_cf7_coinsnap_paymentfirst", true ) ) {
+                    $this->send_mail_after_payment( $form_id, $entry_id );
+                }
+                CoinsnapCf7_Security::log( 'info', $changed ? 'paid' : 'already processed', $invoice_id );
+                return 200;
+            case CoinsnapCf7_Security::PROCESSING:
+                $this->update_entry_status( $entry_id, 'Processing', ['Pending', 'New'], $payment_res );
+                break;
+            case CoinsnapCf7_Security::FAILED:
+                // Expired and Invalid never undo a paid entry.
+                $this->update_entry_status( $entry_id, $status, ['Pending', 'New', 'Processing'], $payment_res );
+                break;
+            default:
+                if ( $status === 'New' ) {
+                    $this->update_entry_status( $entry_id, 'New', ['Pending'], $payment_res );
+                }
+        }
+        CoinsnapCf7_Security::log( 'info', 'status ' . preg_replace( '/[^A-Za-z]/', '', $status ), $invoice_id );
+        return 200;
+    }
+
+    /**
+     * The invoice record for this form, or null. Entries created before 1.5.4 have no record:
+     * during one day after the upgrade they are matched by the API's orderId, form and amount (6.7).
+     */
+    private function find_invoice_record( string $invoice_id, int $form_id, string $provider, string $apiOrderId, array $invoice ): ?array {
+        global $wpdb;
+        $record = CoinsnapCf7_Security::get_record( $invoice_id );
+        if ( $record !== null ) {
+            if ( (int) $record['form_id'] !== $form_id || $record['provider'] !== $provider || ( $apiOrderId !== '' && (string) $apiOrderId !== (string) $record['entry_id'] ) ) {
+                return null;
+            }
+            return $record;
+        }
+
+        $entry_id = (int) $apiOrderId;
+        if ( !CoinsnapCf7_Security::in_legacy_window() || $entry_id < 1 || (string) $entry_id !== (string) $apiOrderId || CoinsnapCf7_Security::entry_has_record( $entry_id ) ) {
+            return null;
+        }
+        // phpcs:ignore WordPress.DB.DirectDatabaseQuery
+        $entry = $wpdb->get_row( $wpdb->prepare( "SELECT id, form_id, amount, submit_time FROM %i WHERE id = %d", $this->get_tablename(), $entry_id ), ARRAY_A );
+        if ( !is_array( $entry ) || (int) $entry['form_id'] !== $form_id || (int) $entry['submit_time'] > CoinsnapCf7_Security::upgraded_at() ) {
+            return null;
+        }
+        $currency = strtoupper( (string) get_post_meta( $form_id, "_cf7_coinsnap_currency", true ) );
+        if ( strtoupper( (string) ( $invoice['currency'] ?? '' ) ) !== $currency ) {
+            return null; // converted invoices (BTCPay → BTC) can't be checked without a record
+        }
+        if ( !CoinsnapCf7_Security::record_invoice( $invoice_id, $entry_id, $form_id, $provider, (string) $entry['amount'], $currency ) ) {
+            return null;
+        }
+        return CoinsnapCf7_Security::get_record( $invoice_id );
+    }
+
+    /** Sets the status only if the entry is in one of $from; true if it changed. */
+    private function update_entry_status( int $entry_id, string $status, array $from, array $payment_details ): bool {
+        global $wpdb;
+        $placeholders = implode( ',', array_fill( 0, count( $from ), '%s' ) );
+        // phpcs:ignore WordPress.DB.DirectDatabaseQuery, WordPress.DB.PreparedSQLPlaceholders
+        $r = $wpdb->query( $wpdb->prepare(
+            "UPDATE %i SET status = %s, payment_details = %s WHERE id = %d AND status IN ($placeholders)",
+            array_merge( [ $this->get_tablename(), $status, (string) wp_json_encode( $payment_details ), $entry_id ], $from )
+        ) );
+        return $r === 1;
+    }
+
+    private function send_mail_after_payment( int $form_id, int $entry_id ): void {
+        global $wpdb;
+        // phpcs:ignore WordPress.DB.DirectDatabaseQuery
+        $order_data = $wpdb->get_row( $wpdb->prepare( "SELECT * FROM %i WHERE id=%d", $this->get_tablename(), $entry_id ), ARRAY_A );
+        if ( !is_array( $order_data ) ) {
             return;
         }
-
-        $this->_postid = $form_id;
-        
-        try {
-            // First check if we have any input
-            $rawPostData = file_get_contents("php://input");
-            if (!$rawPostData) {
-                wp_die('No raw post data received', '', ['response' => 400]);
-            }
-
-            // Get headers and check for signature
-            $headers = getallheaders();
-            $signature = null; $payloadKey = null;
-            $_provider = $this->get_payment_provider();
-                
-            foreach ($headers as $key => $value) {
-                if (strtolower($key) === 'x-coinsnap-sig' || strtolower($key) === 'btcpay-sig') {
-                    $signature = $value;
-                    $payloadKey = strtolower($key);
-                }
-            }
-
-            // Handle missing or invalid signature
-            if (!isset($signature)) {
-                wp_die('Authentication required', '', ['response' => 401]);
-            }
-
-            // Validate the signature
-            $webhook = unserialize(get_post_meta($form_id , "_cf7_coinsnap_webhook", true ));
-            if (!Webhook::isIncomingWebhookRequestValid($rawPostData, $signature, $webhook['secret'])) {
-                wp_die('Invalid authentication signature', '', ['response' => 401]);
-            }
-            
-            try {
-
-                // Parse the JSON payload
-                $postData = json_decode($rawPostData, false, 512, JSON_THROW_ON_ERROR);
-
-                if (!isset($postData->invoiceId)) {
-                    wp_die('No Coinsnap invoiceId provided', '', ['response' => 400]);
-                }
-
-                if(strpos($postData->invoiceId,'test_') !== false){
-                    wp_die('Successful webhook test', '', ['response' => 200]);
-                }
-
-                $invoice_id = $postData->invoiceId;
-                $payload_type = $postData->type;
-
-                $client = new \Coinsnap\Client\Invoice( $this->getApiUrl(), $this->getApiKey() );			
-                $csinvoice = $client->getInvoice($this->getStoreId(), $invoice_id);
-                $status    = $csinvoice->getData()['status'];
-                $order_id = ($this->get_payment_provider() === 'btcpay')? $csinvoice->getData()['metadata']['orderId'] : $csinvoice->getData()['orderId'];
-                
-                $payment_res = $csinvoice->getData();
-                unset( $payment_res['qrCodes'] );
-                unset( $payment_res['lightningInvoice'] );
-                
-                $table_name = $this->get_tablename();
-                
-                $wpdb->update( $table_name, 
-                    [
-                        'payment_details' => wp_json_encode( $payment_res, true ),
-                        'status' => $status
-                    ], array( 'id' => $order_id ), array( '%s', '%s' ), array( '%d' ));
-                
-                $paymentFirst = get_post_meta( $form_id, "_cf7_coinsnap_paymentfirst", true );
-                
-                if($paymentFirst > 0 && ($payload_type === 'Settled' || $payload_type === 'InvoiceSettled')){
-                    
-                    $order_data = $wpdb->get_row( $wpdb->prepare( "SELECT * FROM %i WHERE id=%d", $table_name, $order_id ), ARRAY_A );
-                    
-                    $mail_send_result = $this->cf7_mail_send($form_id,$order_data);//cf7_mail_send
-                    $update_array = [
-                        'message' => $mail_send_result['message'],
-                        'form_sent' => ($mail_send_result['result'] > 0)? 1 : 0
-                    ];
-                    $wpdb->update( $table_name, $update_array, array( 'id' => $order_id ), array( '%s', '%s' ), array( '%d' ));
-                }
-
-                echo "OK";
-                exit;
-            }
-            catch (JsonException $e) {
-                wp_die('Invalid JSON payload', '', ['response' => 400]);
-            }
-        }
-        
-        catch (\Throwable $e) {
-            $errorMessage = __('Webhook payload error', 'coinsnap-for-contact-form-7' );
-            wp_die('Internal server error', '', ['response' => 500]);
-        }
+        $mail_send_result = $this->cf7_mail_send( $form_id, $order_data );
+        $wpdb->update( $this->get_tablename(), [
+            'message' => $mail_send_result['message'],
+            'form_sent' => ( $mail_send_result['result'] ) ? 1 : 0
+        ], array( 'id' => $entry_id ), array( '%s', '%d' ), array( '%d' ) );
     }
+
     /*
     public function cf7_emulate_send($form_id,$order_data){
 
@@ -1104,19 +1172,22 @@ class CoinsnapCf7 {
         // Sent values
         $body = json_decode($order_data['field_values'],true);
         
-        //  Template with sent values replace
-        foreach($body as $bkey => $bvalue){
-            $mail['body'] = str_replace("[".$bkey."]", $bvalue, $mail['body']);
-            $mail['subject'] = str_replace("[".$bkey."]", $bvalue, $mail['subject']);
-            $mail['sender'] = str_replace("[".$bkey."]", $bvalue, $mail['sender']);
-            $mail['recipient'] = str_replace("[".$bkey."]", $bvalue, $mail['recipient']);
-            $mail['additional_headers'] = str_replace("[".$bkey."]", $bvalue, $mail['additional_headers']);
+        //  Template with sent values replace. The values were typed by the visitor: no line breaks in
+        //  header fields (no injected Bcc), and escaped in HTML mails.
+        foreach((array) $body as $bkey => $bvalue){
+            $bvalue = is_array($bvalue) ? implode(', ', array_map('strval', $bvalue)) : (string) $bvalue;
+            $header_value = trim(str_replace(["\r", "\n"], ' ', $bvalue));
+            $mail['body'] = str_replace("[".$bkey."]", !empty($mail['use_html']) ? esc_html($bvalue) : $bvalue, $mail['body']);
+            $mail['subject'] = str_replace("[".$bkey."]", $header_value, $mail['subject']);
+            $mail['sender'] = str_replace("[".$bkey."]", $header_value, $mail['sender']);
+            $mail['recipient'] = str_replace("[".$bkey."]", $header_value, $mail['recipient']);
+            $mail['additional_headers'] = str_replace("[".$bkey."]", $header_value, $mail['additional_headers']);
         }
 
         //  Sent files
-        $files_array = json_decode($order_data['files'],true);
+        $files_array = json_decode((string) $order_data['files'],true);
 
-        if(count($files_array) > 0){
+        if(is_array($files_array) && count($files_array) > 0){
             $attachments = array();
             foreach($files_array as $_file){ $attachments[] = $_file; }
             $mail['attachments'] = implode("\n", $attachments);
@@ -1152,74 +1223,64 @@ class CoinsnapCf7 {
         return ($this->get_payment_provider() === 'btcpay')? get_post_meta( $this->_postid, "_cf7_btcpay_server_url", true ) : COINSNAP_SERVER_URL;
     }
 
+    /**
+     * True if this form's webhook is registered on the store; false only when the API confirms it is
+     * missing. API errors are thrown: an error is never "no webhook", so it never replaces the secret.
+     */
     public function webhookExists(string $apiUrl, string $apiKey, string $storeId): bool {
-        
-        $form_id = (isset($this->_postid) && $this->_postid > 0)? $this->_postid : 0;
-        if($form_id > 0){
-        
-            $whClient = new Webhook( $apiUrl, $apiKey );
-            $storedWebhook = unserialize(get_post_meta($form_id , "_cf7_coinsnap_webhook", true ));
-            
-            if (is_array($storedWebhook) && isset($storedWebhook['id'])) {
 
-                try {
-                    $existingWebhook = $whClient->getWebhook( $storeId, $storedWebhook['id'] );
-                    
-                    if($existingWebhook->getData()['id'] === $storedWebhook['id'] && strpos( $existingWebhook->getData()['url'], $storedWebhook['url'] ) !== false){
-                        return true;
-                    }
-                }
-                catch (\Throwable $e) {
-                    $errorMessage = __( 'Error fetching existing Webhook', 'coinsnap-for-contact-form-7' );
-                }
-            }
+        $form_id = (int) $this->_postid;
+        if ($form_id < 1) {
+            return false;
+        }
+        $whClient = new Webhook( $apiUrl, $apiKey );
+        $ourUrl = $this->get_webhook_url();
+        $storedWebhook = CoinsnapCf7_Security::get_webhook( $form_id );
+
+        if (CoinsnapCf7_Security::webhook_secret( $form_id, $this->get_payment_provider(), $storeId ) !== '' && ($storedWebhook['id'] ?? '') !== '') {
             try {
-                $storeWebhooks = $whClient->getWebhooks( $storeId );
-                foreach($storeWebhooks as $webhook){
-                    if(strpos( $webhook->getData()['url'], $this->get_webhook_url() ) !== false){
-                        $whClient->deleteWebhook( $storeId, $webhook->getData()['id'] );
-                    }
+                $existing = $whClient->getWebhook( $storeId, $storedWebhook['id'] )->getData();
+                if ((string) ($existing['id'] ?? '') === $storedWebhook['id'] && rtrim((string) ($existing['url'] ?? ''), '/') === rtrim($ourUrl, '/')) {
+                    return true;
                 }
             }
-            catch (\Throwable $e) {
-                $errorMessage = sprintf( 
-                    /* translators: 1: StoreId */
-                    __( 'Error fetching webhooks for store ID %1$s', 'coinsnap-for-contact-form-7' ), $storeId);
+            catch (\Coinsnap\Exception\RequestException $e) {
+                if (!in_array((int) $e->getCode(), [400, 404], true)) {
+                    throw $e;
+                }
             }
         }
-	return false;
+
+        // Missing: remove stale webhooks with exactly this form's URL (their secret is unknown), then report missing.
+        foreach ($whClient->getWebhooks( $storeId ) as $webhook) {
+            $data = $webhook->getData();
+            if (rtrim((string) ($data['url'] ?? ''), '/') === rtrim($ourUrl, '/')) {
+                $whClient->deleteWebhook( $storeId, (string) $data['id'] );
+            }
+        }
+        return false;
     }
-    
-    public function registerWebhook(string $apiUrl, $apiKey, $storeId){
-        
-        $form_id = (isset($this->_postid) && $this->_postid > 0)? $this->_postid : 0;
-        if($form_id > 0){
-        
-            try {
-                $whClient = new Webhook( $apiUrl, $apiKey );
-                $webhook_events = ($this->get_payment_provider() === 'btcpay')? self::BTCPAY_WEBHOOK_EVENTS : self::COINSNAP_WEBHOOK_EVENTS;
-                $webhook = $whClient->createWebhook(
-                    $storeId,   //$storeId
-                    $this->get_webhook_url(), //$url
-                    $webhook_events,   //$specificEvents
-                    null    //$secret
-                );
 
-                update_post_meta( $form_id, "_cf7_coinsnap_webhook", serialize([
-                        'id' => $webhook->getData()['id'],
-                        'secret' => $webhook->getData()['secret'],
-                        'url' => $webhook->getData()['url']
-                    ]
-                ));
+    public function registerWebhook(string $apiUrl, $apiKey, $storeId): bool {
 
-                return $webhook;
-
-            }
-            catch (\Throwable $e) {
-                $errorMessage = __('Error creating a new webhook on Coinsnap instance: ', 'coinsnap-for-contact-form-7' ) . $e->getMessage();
-            }
-
-            return null;
+        $form_id = (int) $this->_postid;
+        if ($form_id < 1) {
+            return false;
         }
+        try {
+            $whClient = new Webhook( $apiUrl, (string) $apiKey );
+            $webhook_events = ($this->get_payment_provider() === 'btcpay')? self::BTCPAY_WEBHOOK_EVENTS : self::COINSNAP_WEBHOOK_EVENTS;
+            $data = $whClient->createWebhook( (string) $storeId, $this->get_webhook_url(), $webhook_events, null )->getData();
+            if (empty($data['id']) || empty($data['secret'])) {
+                CoinsnapCf7_Security::log( 'info', 'webhook register failed' );
+                return false;
+            }
+            CoinsnapCf7_Security::save_webhook( $form_id, (string) $data['id'], (string) $data['secret'], (string) ($data['url'] ?? $this->get_webhook_url()), $this->get_payment_provider(), (string) $storeId );
+            return true;
+        }
+        catch (\Throwable $e) {
+            CoinsnapCf7_Security::log( 'info', 'webhook register failed' );
+        }
+        return false;
     }
 }

@@ -3,16 +3,16 @@
  * Plugin Name:     Bitcoin Payment for Contact Form 7
  * Plugin URI:      https://coinsnap.io/wp-add-ons/contact-form-7/
  * Description:     With this Bitcoin payment plugin for Contact Form 7 you can now offer products, downloads, bookings or get donations in Bitcoin right in your forms!
- * Version:         1.5.2
+ * Version:         1.5.3
  * Author:          Coinsnap
  * Author URI:      https://coinsnap.io/
  * Text Domain:     coinsnap-for-contact-form-7
  * Domain Path:     /languages
  * Requires PHP:    7.4
- * Tested up to:    6.9
+ * Tested up to:    7.0
  * Requires Plugins: contact-form-7
  * Requires at least: 6.2
- * CF7 tested up to: 6.1.5
+ * CF7 tested up to: 6.1.6
  * License:         GPL2
  * License URI:     https://www.gnu.org/licenses/gpl-2.0.html
  *
@@ -22,7 +22,7 @@
 defined( 'ABSPATH' ) || exit;
 
 if(!defined('COINSNAPCF7_REFERRAL_CODE' )){define( 'COINSNAPCF7_REFERRAL_CODE', 'D19827' );}
-if(!defined('COINSNAPCF7_VERSION' )){define( 'COINSNAPCF7_VERSION', '1.5.2' );}
+if(!defined('COINSNAPCF7_VERSION' )){define( 'COINSNAPCF7_VERSION', '1.5.3' );}
 if(!defined('COINSNAP_SERVER_URL')){define( 'COINSNAP_SERVER_URL', 'https://app.coinsnap.io' );}
 if(!defined('COINSNAP_API_PATH')){define( 'COINSNAP_API_PATH', '/api/v1/');}
 if(!defined('COINSNAP_SERVER_PATH')){define( 'COINSNAP_SERVER_PATH', 'stores' );}
@@ -33,13 +33,15 @@ if(!defined( 'WPCF7_LOAD_JS' )){define( 'WPCF7_LOAD_JS', false );}
 register_activation_hook( __FILE__, "coinsnapcf7_activate" );
 register_deactivation_hook( __FILE__, "coinsnapcf7_deactivate" );
 
+require_once( plugin_dir_path( __FILE__ ) . 'class-coinsnapcf7-security.php' );
+
 class cf7_coinsnap {
     public static function load() {
-        if(sanitize_text_field( filter_input(INPUT_POST,'after_payment',FILTER_VALIDATE_INT) ) !== 1){
-            require_once( plugin_dir_path( __FILE__ ) . 'library/loader.php' );
-            require_once( 'coinsnapcf7-class.php' );
-            CoinsnapCf7::get_instance();
-        }
+        // Always loaded: a posted "after_payment" field used to switch the payment off.
+        require_once( plugin_dir_path( __FILE__ ) . 'library/loader.php' );
+        require_once( plugin_dir_path( __FILE__ ) . 'coinsnapcf7-class.php' );
+        CoinsnapCf7_Security::install(); // creates the invoice table after an update (no-op once done)
+        CoinsnapCf7::get_instance();
     }
 }
 
@@ -67,12 +69,16 @@ function coinsnapcf7_activate() {
         require_once( ABSPATH . 'wp-admin/includes/upgrade.php' );
         dbDelta( $sql );
     }
+    CoinsnapCf7_Security::install( true );
 }
 
 function coinsnapcf7_deactivate() {
 	global $wpdb;
 	$table_name = $wpdb->prefix . "coinsnapcf7_extension";
 	$wpdb->query( $wpdb->prepare( "DROP TABLE IF EXISTS %i", $table_name ) );
+	// The entries are dropped above, so their invoice records go too.
+	$wpdb->query( $wpdb->prepare( "DROP TABLE IF EXISTS %i", CoinsnapCf7_Security::table() ) );
+	delete_option( CoinsnapCf7_Security::DB_VERSION_KEY );
 	delete_option( 'coinsnapcf7_check_show_warning' );
 }
 
@@ -98,11 +104,6 @@ function coinsnapcf7_dependency_notice() {?>
 
 add_action('init', function() {
     
-//  Session launcher
-    if ( ! session_id() ) {
-        session_start();
-    }
-    
 // Setting up and handling custom endpoint for api key redirect from BTCPay Server.
     add_rewrite_endpoint('coinsnap-for-cf7-btcpay-settings-callback', EP_ROOT);
 });
@@ -110,8 +111,8 @@ add_action('init', function() {
 // To be able to use the endpoint without appended url segments we need to do this.
 add_filter('request', function($vars) {
     if (isset($vars['coinsnap-for-cf7-btcpay-settings-callback'])) {
+        // The callback is proven by the one-time state from the wizard, checked in CoinsnapCf7::btcpayCallback().
         $vars['coinsnap-for-cf7-btcpay-settings-callback'] = true;
-        $vars['coinsnap-for-cf7-btcpay-nonce'] = wp_create_nonce('coinsnapcf7-btcpay-nonce');
     }
     return $vars;
 });
