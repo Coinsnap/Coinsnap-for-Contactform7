@@ -26,7 +26,9 @@ abstract class AbstractResult implements \ArrayAccess {
         return array_key_exists($offset, $data);
     }
 
-    public function offsetGet($offset): mixed
+    // No "mixed" return type: it is PHP 8 only, and the plugin supports PHP 7.4.
+    #[\ReturnTypeWillChange]
+    public function offsetGet($offset)
     {
         $data = $this->getData();
         return $data[$offset] ?? null;

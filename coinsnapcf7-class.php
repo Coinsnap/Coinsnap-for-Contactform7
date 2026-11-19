@@ -868,14 +868,24 @@ class CoinsnapCf7 {
                     $return_url = get_post_meta( $post_id, "_cf7_coinsnap_s_url", true );
                     
 		
-                    $metadata                 = [];
-                    $metadata['orderNumber']  = $invoice_no;
-                    $metadata['customerName'] = $buyerName;
-                    $metadata['customerEmail'] = $buyerEmail;
-                    
-                    if($this->get_payment_provider() === 'btcpay') {
-                        $metadata['orderId'] = $invoice_no;
+                    // orderId / orderNumber stay the entry ID: the webhook matches the invoice to the entry by it.
+                    $tags = [];
+                    foreach ( $wpcf7->scan_form_tags() as $tag ) {
+                        $tags[] = [ 'basetype' => (string) $tag->basetype, 'name' => (string) $tag->name ];
                     }
+                    $metadata = CoinsnapCf7_Metadata::for_entry( [
+                        'entry_id'   => $invoice_no,
+                        'form_id'    => $post_id,
+                        'form_title' => $wpcf7->title(),
+                        'tags'       => $tags,
+                        'posted'     => (array) $submission->get_posted_data(),
+                        'name'       => $buyerName,
+                        'email'      => $buyerEmail,
+                        'page_url'   => (string) $submission->get_meta( 'url' ),
+                        'post_id'    => (int) $submission->get_meta( 'container_post_id' ),
+                        'version'    => COINSNAPCF7_VERSION,
+                        'language'   => function_exists( 'determine_locale' ) ? determine_locale() : get_locale(),
+                    ] );
 
                     if($this->get_payment_provider() === 'btcpay' && $currency !== 'BTC'){
                         $store = new \Coinsnap\Client\Store($this->getApiUrl(), $this->getApiKey());
