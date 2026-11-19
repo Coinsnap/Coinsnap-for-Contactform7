@@ -72,13 +72,10 @@ function coinsnapcf7_activate() {
     CoinsnapCf7_Security::install( true );
 }
 
+// Deactivation keeps the entries and invoice records: they are the merchant's payment records, and
+// the plugin is also deactivated automatically while Contact Form 7 is inactive. uninstall.php
+// removes them when the plugin is deleted.
 function coinsnapcf7_deactivate() {
-	global $wpdb;
-	$table_name = $wpdb->prefix . "coinsnapcf7_extension";
-	$wpdb->query( $wpdb->prepare( "DROP TABLE IF EXISTS %i", $table_name ) );
-	// The entries are dropped above, so their invoice records go too.
-	$wpdb->query( $wpdb->prepare( "DROP TABLE IF EXISTS %i", CoinsnapCf7_Security::table() ) );
-	delete_option( CoinsnapCf7_Security::DB_VERSION_KEY );
 	delete_option( 'coinsnapcf7_check_show_warning' );
 }
 
