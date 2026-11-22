@@ -4,15 +4,12 @@ if (!defined('ABSPATH')) {
 }
 
 /**
- * CoinGecko exchange rates, cached, and the smallest amount Coinsnap accepts.
+ * CoinGecko exchange rates, cached, and the Coinsnap amount check.
  *
  * Kept in the plugin's own class: the bundled Coinsnap\ library is shared by all Coinsnap plugins,
  * so on a site with several of them another plugin's copy of Coinsnap\Client\Invoice may be loaded.
  */
 final class CoinsnapCf7_Rates {
-
-    /** Smallest invoice Coinsnap accepts on a store without Lightning (on-chain dust limit), in sats. */
-    public const MIN_SATS = 294;
 
     private const URL = 'https://api.coingecko.com/api/v3/exchange_rates';
     private const CACHE = 'coinsnapcf7_exchange_rates';            // transient: fresh rates
@@ -57,46 +54,25 @@ final class CoinsnapCf7_Rates {
         define('COINSNAP_CURRENCY_RATES', $rates !== null ? ['result' => true, 'data' => $rates] : ['result' => false, 'error' => 'ratesListError']);
     }
 
-    /** Smallest amount Coinsnap accepts in this currency (294 sats), or null when the rate is unknown. */
-    public static function minimum(string $currency, ?array $rates): ?float {
-        $currency = strtoupper($currency);
-        if ($currency === 'SATS') {
-            return (float) self::MIN_SATS;
-        }
-        if ($currency === 'BTC') {
-            return self::MIN_SATS / 100000000;
-        }
-        $value = $rates[strtolower($currency)]['value'] ?? 0;
-        if (!is_numeric($value) || $value <= 0) {
-            return null;
-        }
-        // Rounded up to the cent, so the minimum shown is never below 294 sats.
-        return max(0.01, ceil(round(self::MIN_SATS / 100000000 * (float) $value * 100, 6)) / 100);
-    }
-
     /**
-     * The Coinsnap amount check, with the result shape of the library's checkPaymentData().
-     * Without a rate for a fiat currency only a positive amount is required: Coinsnap then decides,
-     * and its refusal is shown to the buyer.
+     * The Coinsnap amount check, with the result shape of the library's checkPaymentData(): a supported
+     * currency and at least the smallest unit. It needs no exchange rate. Coinsnap decides about small
+     * amounts (a store without Lightning refuses less than 294 sats), and its refusal is shown to the buyer.
      */
     public static function check_coinsnap_amount(float $amount, string $currency, array $supported, bool $calculation = false): array {
         $currency = strtoupper($currency);
         if (!in_array($currency, $supported, true)) {
             return ['result' => false, 'error' => 'currencyError', 'min_value' => ''];
         }
-        $rates = ($currency === 'SATS' || $currency === 'BTC') ? null : self::get();
-        $min = self::minimum($currency, $rates);
-        if ($min === null) {
-            $min = in_array($currency, ['JPY', 'RUB'], true) ? 1.0 : 0.01;
-        }
+        $minimums = ['SATS' => 1, 'JPY' => 1, 'RUB' => 1, 'BTC' => 0.000001];
+        $min = (float) ($minimums[$currency] ?? 0.01);
         if ($calculation) {
             return ['result' => true, 'min_value' => $min];
         }
         if ($amount <= 0 || round($amount, 8) < round($min, 8)) {
             return ['result' => false, 'error' => 'amountError', 'min_value' => $min];
         }
-        $value = $rates[strtolower($currency)]['value'] ?? 0;
-        return ['result' => true, 'rate' => (is_numeric($value) && $value > 0) ? 1 / $value : null];
+        return ['result' => true, 'rate' => null];
     }
 
     /** The rates from CoinGecko, or null when they can't be loaded. At most two tries, none more after 403/429. */

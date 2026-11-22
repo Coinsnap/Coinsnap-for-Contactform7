@@ -1,7 +1,7 @@
 <?php
 // Run with: php tests/payment-errors-test.php
 // What the buyer sees when no invoice can be created (the form shows a message instead of an empty
-// page or "Thank you"), the 294-sat minimum, and the cached CoinGecko rates.
+// page or "Thank you"), the API's refusal text, the amount check, and the cached CoinGecko rates.
 // WordPress/CF7 stubs and a fake API; no network.
 if (PHP_SAPI !== 'cli') { exit; }
 
@@ -27,7 +27,10 @@ register_shutdown_function(function () {
 });
 
 function plugin_dir_path($f) { return dirname($f) . '/'; }
-function add_action(...$a) {}
+$GLOBALS['t_debug_hooks'] = [];
+function add_action($hook, $cb = null, $prio = 10, $args = 1) { if ($hook === 'http_api_debug') { $GLOBALS['t_debug_hooks'][] = $cb; } }
+function remove_action($hook, $cb = null, $prio = 10) { $GLOBALS['t_debug_hooks'] = array_values(array_filter($GLOBALS['t_debug_hooks'], function ($c) use ($cb) { return $c !== $cb; })); return true; }
+function wp_strip_all_tags($v) { return strip_tags((string) $v); }
 function add_filter(...$a) {}
 function register_activation_hook(...$a) {}
 function register_deactivation_hook(...$a) {}
@@ -59,6 +62,11 @@ function wp_remote_retrieve_headers($r) { return new T_Headers(); }
 class T_Redirect extends Exception {}
 function wp_redirect($url) { $GLOBALS['t_redirect'] = $url; throw new T_Redirect('redirect'); }
 function wp_remote_request($url, $args) {
+    $response = t_remote_request($url, $args);
+    foreach ($GLOBALS['t_debug_hooks'] as $cb) { $cb($response, 'response', 'Requests', $args, $url); } // like WordPress
+    return $response;
+}
+function t_remote_request($url, $args) {
     $GLOBALS['t_requests'][] = ['url' => $url, 'method' => $args['method']];
     $json = function ($v, $code = 200) { return ['response' => ['code' => $code], 'body' => json_encode($v)]; };
     if (strpos($url, 'coingecko') !== false) {
@@ -68,7 +76,9 @@ function wp_remote_request($url, $args) {
     }
     if ($args['method'] === 'POST' && substr($url, -9) === '/invoices') {
         $code = $GLOBALS['t_invoice_status'];
-        return $code === 200 ? $json(['id' => 'inv1', 'checkoutLink' => 'https://pay.test/i']) : $json(['message' => 'refused'], $code);
+        if ($code === 200) { return $json(['id' => 'inv1', 'checkoutLink' => 'https://pay.test/i']); }
+        if ($code === 400 && $GLOBALS['t_posted_amount'] === '100') { return $json(['message' => 'Amount is below the on-chain dust threshold. Enable <b>Lightning</b> on this store to accept smaller amounts.'], 400); }
+        return $code === 400 ? ['response' => ['code' => 400], 'body' => 'Bad Request'] : $json(['message' => 'Unauthorized'], $code);
     }
     return $json([], 404);
 }
@@ -139,47 +149,46 @@ $reset = function ($currency, $paymentFirst, $amount, $invoiceStatus = 200) {
     WPCF7_Submission::$instance = new WPCF7_Submission();
 };
 
-// --- The 294-sat minimum (the amount check the form validation and the invoice step use) ---------
+// --- The amount check: no fixed 294-sat minimum, Coinsnap decides; no CoinGecko request needed -----
 $plugin = CoinsnapCf7::get_instance();
 $GLOBALS['t_meta'] = ['_cf7_coinsnap_provider' => 'coinsnap', '_cf7_coinsnap_store_id' => 'store1', '_cf7_coinsnap_api_key' => 'key'];
 $v = function ($amount, $currency) use ($plugin) { return $plugin->coinsnapcf7_amount_validation($amount, $currency); };
-$r = $v(100.0, 'SATS');
-$check($r['result'] === false && $r['error'] === 'amountError' && (float) $r['min_value'] === 294.0, '100 sats is refused, minimum 294');
-$check($v(293.0, 'SATS')['result'] === false, '293 sats is refused');
-$check($v(294.0, 'SATS')['result'] === true, '294 sats is accepted');
-$check($v(0.000002, 'BTC')['result'] === false && $v(0.000003, 'BTC')['result'] === true, 'BTC minimum is 0.00000294');
-$r = $v(0.10, 'EUR');
-$check($r['result'] === false && abs((float) $r['min_value'] - 0.24) < 0.0001, 'EUR minimum is 294 sats at the loaded rate (0.24 EUR at 80000 EUR/BTC)');
-$check($v(0.24, 'EUR')['result'] === true, '0.24 EUR is accepted');
-$check($v(5.0, 'XYZ')['error'] === 'currencyError', 'unsupported currency is refused');
-
-// --- Rates are cached across requests; CoinGecko failures fall back to the last good rates ------
-$check(isset($GLOBALS['t_transients']['coinsnapcf7_exchange_rates']), 'rates are kept in a transient for the next submissions');
 $GLOBALS['t_requests'] = [];
-$v(10.0, 'EUR');
-$v(10.0, 'USD');
-$check($geckoCalls() === 0, 'cached rates: no CoinGecko request on the next submissions');
+$check($v(100.0, 'SATS')['result'] === true, '100 sats passes the plugin check (a store with Lightning accepts it)');
+$check($v(1.0, 'SATS')['result'] === true && $v(0.0, 'SATS')['result'] === false, 'SATS: 1 is the smallest amount, 0 is refused');
+$check($v(0.000001, 'BTC')['result'] === true && $v(0.0000001, 'BTC')['result'] === false, 'BTC: 0.000001 is the smallest amount');
+$check($v(0.01, 'EUR')['result'] === true && $v(0.001, 'EUR')['result'] === false, 'EUR: 0.01 is the smallest amount');
+$check($v(5.0, 'XYZ')['error'] === 'currencyError', 'unsupported currency is refused');
+$GLOBALS['t_rates_status'] = 429;
+$check($v(5.0, 'EUR')['result'] === true, 'Coinsnap form: no ratesListError when CoinGecko refuses');
+$GLOBALS['t_rates_status'] = 200;
+$check($geckoCalls() === 0, 'Coinsnap form: the amount check does not ask CoinGecko');
 
+// --- Rates (BTCPay) are cached across requests; failures fall back to the last good rates ---------
+$rates = function () { return class_exists('CoinsnapCf7_Rates') ? CoinsnapCf7_Rates::get() : null; };
+$GLOBALS['t_requests'] = [];
+$r = $rates();
+$check(is_array($r) && $r['eur']['value'] == 80000 && isset($GLOBALS['t_transients']['coinsnapcf7_exchange_rates']), 'rates are loaded and kept in a transient');
+$GLOBALS['t_requests'] = [];
+$rates(); $rates();
+$check($geckoCalls() === 0, 'cached rates: no CoinGecko request on the next submissions');
 unset($GLOBALS['t_transients']['coinsnapcf7_exchange_rates']); // fresh cache expired
 $GLOBALS['t_rates_status'] = 429;
 $GLOBALS['t_requests'] = [];
-$r = $v(0.10, 'EUR');
+$r = $rates();
 $check($geckoCalls() === 1, '429: CoinGecko is asked once, without retries');
-$check($r['result'] === false && $r['error'] === 'amountError', '429: the last good rates still give the EUR minimum');
+$check(is_array($r) && $r['eur']['value'] == 80000, '429: the last good rates are used');
 $GLOBALS['t_requests'] = [];
-$v(0.10, 'EUR');
+$rates();
 $check($geckoCalls() === 0, '429: no new CoinGecko request during the back-off minute');
 
 $GLOBALS['t_options'] = [];   // no last good rates either
 $GLOBALS['t_transients'] = [];
-$r = $v(0.10, 'EUR');
-$check($r['result'] === true, 'no rates at all: a fiat amount is left to Coinsnap to accept or refuse');
-$check($v(100.0, 'SATS')['result'] === false, 'no rates at all: SATS minimum still applies');
 if (!class_exists('CoinsnapCf7_Rates')) {
     $check(false, 'BTCPay: the library gets the cached rates instead of asking CoinGecko');
 } else {
-    $GLOBALS['t_requests'] = [];
     CoinsnapCf7_Rates::share_with_library();
+    $GLOBALS['t_requests'] = [];
     $client = new \Coinsnap\Client\Invoice('https://btcpay.test', 'key');
     $r = $client->checkPaymentData(10.0, 'EUR', 'bitcoin');
     $check($r['result'] === false && $r['error'] === 'ratesListError' && $geckoCalls() === 0, 'BTCPay: the library uses the shared rates (here: none, so ratesListError) without asking CoinGecko again');
@@ -192,8 +201,8 @@ if (!method_exists($plugin, 'amount_error_message')) {
     $check($msg !== 'ratesListError' && strpos($msg, 'exchange rates') !== false, 'ratesListError is shown as a readable message');
     $msg = $plugin->amount_error_message(['result' => false, 'error' => 'currenciesError'], 'EUR');
     $check($msg !== 'currenciesError' && strpos($msg, 'currencies') !== false, 'currenciesError is shown as a readable message');
-    $check($plugin->amount_error_message(['result' => false, 'error' => 'amountError', 'min_value' => 294.0], 'SATS') === 'Invoice amount cannot be less than 294 SATS', 'amount message for SATS');
-    $check($plugin->amount_error_message(['result' => false, 'error' => 'amountError', 'min_value' => 0.00000294], 'BTC') === 'Invoice amount cannot be less than 0.00000294 BTC', 'amount message for BTC has no exponent');
+    $check($plugin->amount_error_message(['result' => false, 'error' => 'amountError', 'min_value' => 1.0], 'SATS') === 'Invoice amount cannot be less than 1 SATS', 'amount message for SATS');
+    $check($plugin->amount_error_message(['result' => false, 'error' => 'amountError', 'min_value' => 0.000001], 'BTC') === 'Invoice amount cannot be less than 0.00000100 BTC', 'amount message for BTC has no exponent');
 }
 $GLOBALS['t_rates_status'] = 200;
 $GLOBALS['t_transients'] = [];
@@ -208,21 +217,25 @@ $run_before = function () use ($plugin, $form) {
     return $abort;
 };
 
-$reset('SATS', true, '100');
+$reset('SATS', true, '0');
 $abort = $run_before();
-$check($abort === true, 'before mail, 100 sats: mail aborted');
-$check(strpos(WPCF7_Submission::$instance->get_response(), 'cannot be less than 294 SATS') !== false, 'before mail, 100 sats: the form says the minimum');
-$check($createCalls() === 0, 'before mail, 100 sats: no invoice request');
+$check($abort === true && $createCalls() === 0, 'before mail, amount 0: mail aborted, no invoice request');
+
+$reset('SATS', true, '100', 400);
+$abort = $run_before();
+$check($abort === true && $GLOBALS['t_redirect'] === '', 'before mail, 100 sats refused by the API: mail aborted, no redirect');
+$check(WPCF7_Submission::$instance->get_response() === 'The payment could not be started. The payment provider refused this payment: Amount is below the on-chain dust threshold. Enable Lightning on this store to accept smaller amounts.', "before mail, 100 sats refused by the API: the form shows the API's reason as plain text");
 
 $reset('SATS', true, '500', 400);
 $abort = $run_before();
 $check($abort === true && $GLOBALS['t_redirect'] === '', 'before mail, API refuses (400): mail aborted, no redirect');
-$check(strpos(WPCF7_Submission::$instance->get_response(), 'refused') !== false, 'before mail, API refuses (400): the form says the payment was refused');
+$check(strpos(WPCF7_Submission::$instance->get_response(), 'The amount may be too low.') !== false, 'before mail, API refuses (400) without a message: the form says the payment was refused');
 
 $reset('SATS', true, '500', 401);
 $abort = $run_before();
 $check($abort === true, 'before mail, wrong store/key (401): mail aborted');
-$check(strpos(WPCF7_Submission::$instance->get_response(), 'not available') !== false, 'before mail, wrong store/key (401): the form says payment is not available');
+$check(strpos(WPCF7_Submission::$instance->get_response(), 'not available') !== false && strpos(WPCF7_Submission::$instance->get_response(), 'Unauthorized') === false, 'before mail, wrong store/key (401): the form says payment is not available');
+$check($GLOBALS['t_debug_hooks'] === [], 'the reply capture is removed again');
 
 $reset('SATS', true, '500');
 $abort = $run_before();

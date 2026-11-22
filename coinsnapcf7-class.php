@@ -342,7 +342,7 @@ class CoinsnapCf7 {
                 }
             }
             else {
-                // 294 sats minimum, checked here and not by the shared library (another Coinsnap plugin's copy may be loaded).
+                // Checked here and not by the shared library (another Coinsnap plugin's copy may be loaded), without CoinGecko.
                 $checkInvoice = CoinsnapCf7_Rates::check_coinsnap_amount((float)$amount, (string) $currency, $client->getCurrencies());
             }
             return $checkInvoice;
@@ -422,12 +422,25 @@ class CoinsnapCf7 {
         return $error !== '' ? $error : $this->payment_unavailable_message();
     }
 
-    /** A min: value for the sample cs_amount tag that is not below 294 sats at realistic rates (or a larger example). */
+    /** A min: value for the sample cs_amount tag in the form's currency (or a larger example). */
     public static function sample_min_amount( string $currency, bool $example = false ): string {
         $samples = $example
             ? ['SATS' => '1000', 'BTC' => '0.00001', 'JPY' => '500', 'RUB' => '250']
-            : ['SATS' => '294', 'BTC' => '0.00000294', 'JPY' => '100', 'RUB' => '50'];
+            : ['SATS' => '1', 'BTC' => '0.000001', 'JPY' => '1', 'RUB' => '1'];
         return $samples[strtoupper( $currency )] ?? ( $example ? '2.50' : '1' );
+    }
+
+    /** The "message" of an API error reply (Coinsnap: {"message"}, BTCPay: {"message"} or [{"message"}]), as short plain text. */
+    public static function api_error_text( string $body ): string {
+        $data = json_decode( $body, true );
+        $text = '';
+        if ( is_array( $data ) && isset( $data['message'] ) && is_string( $data['message'] ) ) {
+            $text = $data['message'];
+        } elseif ( is_array( $data ) && isset( $data[0]['message'] ) && is_string( $data[0]['message'] ) ) {
+            $text = $data[0]['message'];
+        }
+        $text = trim( (string) preg_replace( '/\s+/', ' ', wp_strip_all_tags( $text ) ) );
+        return strlen( $text ) > 300 ? substr( $text, 0, 297 ) . '...' : $text;
     }
 
     private function payment_unavailable_message(): string {
@@ -774,7 +787,7 @@ class CoinsnapCf7 {
 		echo '<li class="coinsnapcf7-row">'. wp_kses(__('To specify the cost of your offering, use the number element and name it','coinsnap-for-contact-form-7'),['b' => array(),'strong' => array()]).' <strong>cs_amount</strong>: [number* cs_amount min:'. esc_html( $sample_min ) .']</li>';
 		echo '<li class="coinsnapcf7-row">'. esc_html(sprintf(
 		    /* translators: 1: minimum amount in the sample tag */
-		    __('You define the cost of your offering by changing the value %1$s in the tag. Coinsnap does not accept payments below 294 sats, so the minimum must be worth at least 294 sats in your currency, e.g.','coinsnap-for-contact-form-7'), $sample_min)).' [number* cs_amount min:'. esc_html( self::sample_min_amount( (string) $coinsnap_currency, true ) ) .']</li>';
+		    __('You define the cost of your offering by changing the value %1$s in the tag. Very small amounts can be refused by the payment provider (for example below 294 sats on a store without Lightning); the buyer then sees its message. For example','coinsnap-for-contact-form-7'), $sample_min)).' [number* cs_amount min:'. esc_html( self::sample_min_amount( (string) $coinsnap_currency, true ) ) .']</li>';
 		echo '<li class="coinsnapcf7-row">'. wp_kses(__('If you want to see the name and/or the email of the buyer in the transaction overview in your Coinsnap account, name the respective fields accordingly <strong>cs_name</strong> and <strong>cs_email</strong>:','coinsnap-for-contact-form-7'),['b' => array(),'strong' => array()]).' [text cs_name] [email cs_email]</li>';
 		echo '</ol><div class="coinsnapcf7-row"><p>'. wp_kses(__('NOTE: <strong>cs_amount</strong> is a mandatory field you must use in your form to make the plugin work. <strong>cs_name</strong> and <strong>cs_email</strong> you only need to use if you want to see this information in your Coinsnap transaction overview.','coinsnap-for-contact-form-7'),['b' => array(),'strong' => array()]).'</p></div>';
 		echo '<div class="coinsnapcf7-row"><hr></div>';
@@ -964,7 +977,17 @@ class CoinsnapCf7 {
                 $camount = ($currency === 'BTC')? \Coinsnap\Util\PreciseNumber::parseFloat($amount,8) : \Coinsnap\Util\PreciseNumber::parseFloat($amount,2);
                 
                 $walletMessage = '';
-                
+
+                // The library's exception leaves out the API's reply (it can echo request data, 6.13). Its
+                // error text is read here only to show it to this buyer; it is not logged.
+                $api_reply = '';
+                $capture_reply = static function ( $response, $context, $class, $args, $url ) use ( &$api_reply ) {
+                    if ( is_array( $response ) && strpos( (string) $url, '/invoices' ) !== false ) {
+                        $api_reply = (string) wp_remote_retrieve_body( $response );
+                    }
+                };
+                add_action( 'http_api_debug', $capture_reply, 10, 5 );
+
                 try {
             
                     $csinvoice = $client->createInvoice(
@@ -984,14 +1007,20 @@ class CoinsnapCf7 {
                     $invoiceData = $csinvoice->getData();
                 }
                 catch (\Throwable $e){
+                    remove_action( 'http_api_debug', $capture_reply, 10 );
                     $status = (int) $e->getCode();
                     CoinsnapCf7_Security::log( 'info', 'invoice create failed (' . $status . ')', '', 'payment' );
                     if ( $status === 400 || $status === 422 ) {
-                        // Coinsnap refuses e.g. amounts below the dust limit on a store without Lightning.
-                        return __( 'The payment provider refused this payment. The amount may be too low.', 'coinsnap-for-contact-form-7' );
+                        // Coinsnap refuses e.g. amounts below the dust limit on a store without Lightning: show its reason.
+                        $api_text = self::api_error_text( $api_reply );
+                        return $api_text !== ''
+                            /* translators: 1: the payment provider's reason, as it sent it */
+                            ? sprintf( __( 'The payment provider refused this payment: %1$s', 'coinsnap-for-contact-form-7' ), $api_text )
+                            : __( 'The payment provider refused this payment. The amount may be too low.', 'coinsnap-for-contact-form-7' );
                     }
                     return $this->payment_unavailable_message();
                 }
+                remove_action( 'http_api_debug', $capture_reply, 10 );
 
                 // Keep what this invoice asks for: the webhook pays the entry only with this record (3, 6.7).
                 if ( empty( $invoiceData['id'] ) || empty( $invoiceData['checkoutLink'] ) || !CoinsnapCf7_Security::record_invoice( (string) $invoiceData['id'], (int) $invoice_no, (int) $post_id, $this->get_payment_provider(), $camount->__toString(), strtoupper( $currency ) ) ) {

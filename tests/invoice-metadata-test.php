@@ -11,6 +11,8 @@ $GLOBALS['t_meta'] = [];
 $GLOBALS['t_requests'] = [];
 function plugin_dir_path($f) { return dirname($f) . '/'; }
 function add_action(...$a) {}
+function remove_action(...$a) { return true; }
+function wp_strip_all_tags($v) { return strip_tags((string) $v); }
 function add_filter(...$a) {}
 function register_activation_hook(...$a) {}
 function register_deactivation_hook(...$a) {}
