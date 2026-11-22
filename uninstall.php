@@ -22,3 +22,6 @@ foreach ($coinsnapcf7_meta_keys as $coinsnapcf7_meta_key) {
 delete_option('coinsnapcf7_db_version');
 delete_option('coinsnapcf7_security_upgraded_at');
 delete_option('coinsnapcf7_check_show_warning');
+delete_option('coinsnapcf7_exchange_rates_last');
+delete_transient('coinsnapcf7_exchange_rates');
+delete_transient('coinsnapcf7_exchange_rates_backoff');

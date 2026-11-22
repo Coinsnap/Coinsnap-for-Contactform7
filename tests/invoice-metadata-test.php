@@ -32,12 +32,16 @@ function esc_html($v) { return $v; }
 function __($v, $d = null) { return $v; }
 function esc_url($v) { return $v; }
 function is_wp_error($v) { return false; }
+function wp_remote_retrieve_response_code($r) { return $r['response']['code']; }
+function wp_remote_retrieve_body($r) { return $r['body']; }
+function get_transient($k) { return false; }
+function set_transient(...$a) { return true; }
 class T_Headers { public function getAll() { return []; } }
 function wp_remote_retrieve_headers($r) { return new T_Headers(); }
-// The plugin exits after the redirect: stop there (the plugin's catch logs "invoice create failed").
+// The plugin exits after the redirect: stop there.
 function wp_redirect($url) { $GLOBALS['t_redirect'] = $url; throw new RuntimeException('redirect'); }
 function wp_remote_request($url, $args) {
-    $GLOBALS['t_requests'][] = ['url' => $url, 'method' => $args['method'], 'body' => $args['body']];
+    $GLOBALS['t_requests'][] = ['url' => $url, 'method' => $args['method'], 'body' => $args['body'] ?? ''];
     $json = function ($v) { return ['response' => ['code' => 200], 'body' => json_encode($v)]; };
     if (strpos($url, 'coingecko') !== false) { return $json(['rates' => ['eur' => ['value' => 80000], 'usd' => ['value' => 90000]]]); }
     if (substr($url, -16) === '/payment-methods') { return $json([['paymentMethodId' => 'BTC-LN', 'enabled' => true]]); }
@@ -117,7 +121,7 @@ foreach (['coinsnap', 'btcpay'] as $provider) {
         '_cf7_coinsnap_store_id' => 'store1', '_cf7_coinsnap_api_key' => 'key',
         '_cf7_btcpay_store_id' => 'store1', '_cf7_btcpay_api_key' => 'key', '_cf7_btcpay_server_url' => 'https://btcpay.test',
     ];
-    $plugin->coinsnap_redirect_payment(WPCF7_ContactForm::$current);
+    try { $plugin->coinsnap_redirect_payment(WPCF7_ContactForm::$current); } catch (RuntimeException $e) {}
     $create = array_values(array_filter($GLOBALS['t_requests'], function ($r) { return $r['method'] === 'POST' && substr($r['url'], -9) === '/invoices'; }));
     $check(count($create) === 1, "$provider: one create-invoice request");
     $check($GLOBALS['t_redirect'] === 'https://pay.test/i', "$provider: invoice recorded, buyer sent to the checkout");
