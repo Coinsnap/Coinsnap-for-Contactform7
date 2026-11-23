@@ -114,7 +114,7 @@ class CoinsnapCf7 {
         if($_provider === 'btcpay'){
                         
             try {
-                
+                CoinsnapCf7_Rates::share_with_library();
                 $storePaymentMethods = $store->getStorePaymentMethods($this->getStoreId());
 
                 if ($storePaymentMethods['code'] === 200) {
@@ -135,7 +135,7 @@ class CoinsnapCf7 {
             }
         }
         else {
-            $checkInvoice = $client->checkPaymentData(0,$currency,'coinsnap','calculation');
+            $checkInvoice = CoinsnapCf7_Rates::check_coinsnap_amount(0, (string) $currency, $client->getCurrencies(), true);
         }
         
         if(isset($checkInvoice) && $checkInvoice['result']){
@@ -240,7 +240,7 @@ class CoinsnapCf7 {
             wp_send_json_success(['url' => $url]);
         }
         catch (\Throwable $e) {
-            CoinsnapCf7_Security::log('info', 'btcpay authorize url failed');
+            CoinsnapCf7_Security::log('info', 'btcpay authorize url failed', '', 'settings');
         }
         wp_send_json_error("Error processing Ajax request.");
     }
@@ -249,10 +249,13 @@ class CoinsnapCf7 {
         * Method checks if Coinsnap payment is enabled and 
         * payment should be before e-mail submission. 
         * If true, redirects to payment, otherwise - skips payment.
+        * When no invoice can be created, the mail is not sent and the form shows why.
         *
         * @param WPCF7_ContactForm $contact_form The Contact Form 7 form object.
+        * @param bool $abort Set to true to stop Contact Form 7 from sending the mail.
+        * @param WPCF7_Submission|null $submission The submission.
     */
-    public function coinsnap_payment_before($cf7){
+    public function coinsnap_payment_before($cf7, &$abort = false, $submission = null){
         
         $post_id = $cf7->id();
         $enable = get_post_meta( $post_id, "_cf7_coinsnap_enable", true );
@@ -260,15 +263,18 @@ class CoinsnapCf7 {
             
         if($paymentFirst && $enable){
             
-            $submission = WPCF7_Submission::get_instance();
+            if (!($submission instanceof WPCF7_Submission)) {
+                $submission = WPCF7_Submission::get_instance();
+            }
 
             if (!$submission) {
                 return;
             }
             
-            // redirect to payment
-            $this->coinsnap_redirect_payment($cf7);
-            exit();
+            // Redirects to the checkout and exits; it only returns when no invoice could be created.
+            $reason = $this->coinsnap_redirect_payment($cf7);
+            $abort = true;
+            $submission->set_response( __( 'The payment could not be started.', 'coinsnap-for-contact-form-7' ) . ' ' . $reason );
         }
     }
         
@@ -285,7 +291,15 @@ class CoinsnapCf7 {
             $paymentFirst = get_post_meta( $post_id, "_cf7_coinsnap_paymentfirst", true );
             
             if(!$paymentFirst && $enable){
-                $this->coinsnap_redirect_payment($cf7);
+                // Redirects to the checkout and exits; it only returns when no invoice could be created.
+                $reason = $this->coinsnap_redirect_payment($cf7);
+                $submission = WPCF7_Submission::get_instance();
+                if ($submission) {
+                    // The mail is already sent: say so, but don't show "Thank you" without a payment.
+                    $submission->set_status( 'aborted' );
+                    $submission->set_response( __( 'Your message was sent, but the payment could not be started.', 'coinsnap-for-contact-form-7' ) . ' ' . $reason );
+                }
+                return false;
             }
             else {
                 return false;
@@ -301,6 +315,7 @@ class CoinsnapCf7 {
                 $store = new \Coinsnap\Client\Store($this->getApiUrl(), $this->getApiKey());
                 
                 try {
+                    CoinsnapCf7_Rates::share_with_library(); // cached rates instead of a CoinGecko request per submission
                     $storePaymentMethods = $store->getStorePaymentMethods($this->getStoreId());
 
                     if ($storePaymentMethods['code'] === 200) {
@@ -327,7 +342,8 @@ class CoinsnapCf7 {
                 }
             }
             else {
-                $checkInvoice = $client->checkPaymentData((float)$amount,strtoupper( $currency ));
+                // Checked here and not by the shared library (another Coinsnap plugin's copy may be loaded), without CoinGecko.
+                $checkInvoice = CoinsnapCf7_Rates::check_coinsnap_amount((float)$amount, (string) $currency, $client->getCurrencies());
             }
             return $checkInvoice;
                     
@@ -373,22 +389,62 @@ class CoinsnapCf7 {
         $checkInvoice = $this->coinsnapcf7_amount_validation( (float) $amount, $currency );
 
         if($checkInvoice['result'] !== true){
-            if($checkInvoice['error'] === 'currencyError'){
-                $errorMessage = sprintf(
-                /* translators: 1: Currency */
-                __( 'Currency %1$s is not supported by Coinsnap', 'coinsnap-for-contact-form-7' ), strtoupper( $currency ));
-            }
-            elseif($checkInvoice['error'] === 'amountError'){
-                $errorMessage = sprintf(
-                /* translators: 1: Amount, 2: Currency */
-                __( 'Invoice amount cannot be less than %1$s %2$s', 'coinsnap-for-contact-form-7' ), $checkInvoice['min_value'] ?? '', strtoupper( $currency ));
-            }
-            else {
-                $errorMessage = $checkInvoice['error'];
-            }
-            $result->invalidate( $amount_tag, $errorMessage);
+            $result->invalidate( $amount_tag, $this->amount_error_message( $checkInvoice, (string) $currency ) );
         }
         return $result;
+    }
+
+    /** Readable message for a failed amount check (checkPaymentData() returns error keys, not text). */
+    public function amount_error_message( array $checkInvoice, string $currency ): string {
+        $currency = strtoupper( $currency );
+        $error = (string) ( $checkInvoice['error'] ?? '' );
+        if($error === 'currencyError'){
+            return sprintf(
+            /* translators: 1: Currency */
+            __( 'Currency %1$s is not supported by Coinsnap', 'coinsnap-for-contact-form-7' ), $currency);
+        }
+        if($error === 'amountError'){
+            $min = $checkInvoice['min_value'] ?? '';
+            if ( is_numeric( $min ) ) {
+                $decimals = ( $currency === 'BTC' ) ? 8 : ( ( $currency === 'SATS' ) ? 0 : 2 );
+                $min = number_format( (float) $min, $decimals, '.', '' );
+            }
+            return sprintf(
+            /* translators: 1: Amount, 2: Currency */
+            __( 'Invoice amount cannot be less than %1$s %2$s', 'coinsnap-for-contact-form-7' ), $min, $currency);
+        }
+        if($error === 'ratesListError'){
+            return __( 'The exchange rates could not be loaded, so the amount could not be checked. Please try again in a few minutes.', 'coinsnap-for-contact-form-7' );
+        }
+        if($error === 'currenciesError'){
+            return __( 'The list of supported currencies could not be loaded. Please try again later.', 'coinsnap-for-contact-form-7' );
+        }
+        return $error !== '' ? $error : $this->payment_unavailable_message();
+    }
+
+    /** A min: value for the sample cs_amount tag in the form's currency (or a larger example). */
+    public static function sample_min_amount( string $currency, bool $example = false ): string {
+        $samples = $example
+            ? ['SATS' => '1000', 'BTC' => '0.00001', 'JPY' => '500', 'RUB' => '250']
+            : ['SATS' => '1', 'BTC' => '0.000001', 'JPY' => '1', 'RUB' => '1'];
+        return $samples[strtoupper( $currency )] ?? ( $example ? '2.50' : '1' );
+    }
+
+    /** The "message" of an API error reply (Coinsnap: {"message"}, BTCPay: {"message"} or [{"message"}]), as short plain text. */
+    public static function api_error_text( string $body ): string {
+        $data = json_decode( $body, true );
+        $text = '';
+        if ( is_array( $data ) && isset( $data['message'] ) && is_string( $data['message'] ) ) {
+            $text = $data['message'];
+        } elseif ( is_array( $data ) && isset( $data[0]['message'] ) && is_string( $data[0]['message'] ) ) {
+            $text = $data[0]['message'];
+        }
+        $text = trim( (string) preg_replace( '/\s+/', ' ', wp_strip_all_tags( $text ) ) );
+        return strlen( $text ) > 300 ? substr( $text, 0, 297 ) . '...' : $text;
+    }
+
+    private function payment_unavailable_message(): string {
+        return __( 'The payment service is not available right now. Please try again later or contact the site owner.', 'coinsnap-for-contact-form-7' );
     }
         
     public function coinsnapcf7_webhook($cf7){
@@ -727,8 +783,11 @@ class CoinsnapCf7 {
 
 		echo '<div class="coinsnapcf7-row"><hr></div>';
 		echo '<div class="coinsnapcf7-row"><h3>'. wp_kses(__('How do I integrate Bitcoin-Lighting Payment in my form?','coinsnap-for-contact-form-7'),['b' => array(),'strong' => array()]).'</h3></div><ol>';
-		echo '<li class="coinsnapcf7-row">'. wp_kses(__('To specify the cost of your offering, use the number element and name it','coinsnap-for-contact-form-7'),['b' => array(),'strong' => array()]).' <strong>cs_amount</strong>: [number* cs_amount min:0.01]</li>';
-		echo '<li class="coinsnapcf7-row">'. wp_kses(__('You define the cost of your offering by manipulating the value of the 0.01 in the tag, i.e. writing','coinsnap-for-contact-form-7'),['b' => array(),'strong' => array()]).' [number* cs_amount min:2.50]</li>';
+		$sample_min = self::sample_min_amount( (string) $coinsnap_currency );
+		echo '<li class="coinsnapcf7-row">'. wp_kses(__('To specify the cost of your offering, use the number element and name it','coinsnap-for-contact-form-7'),['b' => array(),'strong' => array()]).' <strong>cs_amount</strong>: [number* cs_amount min:'. esc_html( $sample_min ) .']</li>';
+		echo '<li class="coinsnapcf7-row">'. esc_html(sprintf(
+		    /* translators: 1: minimum amount in the sample tag */
+		    __('You define the cost of your offering by changing the value %1$s in the tag. Very small amounts can be refused by the payment provider (for example below 294 sats on a store without Lightning); the buyer then sees its message. For example','coinsnap-for-contact-form-7'), $sample_min)).' [number* cs_amount min:'. esc_html( self::sample_min_amount( (string) $coinsnap_currency, true ) ) .']</li>';
 		echo '<li class="coinsnapcf7-row">'. wp_kses(__('If you want to see the name and/or the email of the buyer in the transaction overview in your Coinsnap account, name the respective fields accordingly <strong>cs_name</strong> and <strong>cs_email</strong>:','coinsnap-for-contact-form-7'),['b' => array(),'strong' => array()]).' [text cs_name] [email cs_email]</li>';
 		echo '</ol><div class="coinsnapcf7-row"><p>'. wp_kses(__('NOTE: <strong>cs_amount</strong> is a mandatory field you must use in your form to make the plugin work. <strong>cs_name</strong> and <strong>cs_email</strong> you only need to use if you want to see this information in your Coinsnap transaction overview.','coinsnap-for-contact-form-7'),['b' => array(),'strong' => array()]).'</p></div>';
 		echo '<div class="coinsnapcf7-row"><hr></div>';
@@ -738,7 +797,7 @@ class CoinsnapCf7 {
                     <div class="coinsnapcf7-field">
                         <textarea readonly rows="6">
 <label>'. esc_html__('Enter amount','coinsnap-for-contact-form-7').'</label>
-[number* cs_amount min:0.01]
+[number* cs_amount min:'. esc_html( $sample_min ) .']
 <label>'. esc_html__('Your name','coinsnap-for-contact-form-7').'</label>
 [text cs_name]
 <label>'. esc_html__('Your email','coinsnap-for-contact-form-7').'</label>
@@ -750,7 +809,11 @@ class CoinsnapCf7 {
 		echo '<input type="hidden" name="post" value="' . esc_html($post_id) . '"></div>';
     }
 
-    public function coinsnap_redirect_payment( $cf7 ) {
+    /**
+     * Creates the invoice and redirects the buyer to the checkout (then exits).
+     * Returns only when that is not possible, with the reason to show to the buyer.
+     */
+    public function coinsnap_redirect_payment( $cf7 ): string {
         global $wpdb;
 
         $post_id       = $cf7->id();
@@ -761,7 +824,7 @@ class CoinsnapCf7 {
                 $paymentFirst = get_post_meta( $post_id, "_cf7_coinsnap_paymentfirst", true );
                 
 		if ( ! $enable ) {
-                    return false;
+                    return $this->payment_unavailable_message();
 		}
                 
                 $wpcf7           = WPCF7_ContactForm::get_current();
@@ -770,7 +833,7 @@ class CoinsnapCf7 {
 		$form_content = $form_properties['form'];
 		$field_to_check = 'cs_amount';
 		if ( !str_contains( $form_content, $field_to_check ) ) {
-                    return;
+                    return $this->payment_unavailable_message();
 		}
 
 		$amount_field    = 'cs_amount';
@@ -804,7 +867,7 @@ class CoinsnapCf7 {
 		// The amount allowed by the form's cs_amount tag (fixed value, configured options or min/max), never just the browser's.
 		$payment_amount  = CoinsnapCf7_Security::amount_from_form( $wpcf7, (array) $submission->get_posted_data() );
 		if ( $payment_amount === null ) {
-                    return false;
+                    return __( 'Please enter a valid amount.', 'coinsnap-for-contact-form-7' );
 		}
 		$submission_data[ $amount_field ] = $payment_amount; // the mail shows what is charged
 		$currency        = strtoupper(get_post_meta( $post_id, "_cf7_coinsnap_currency", true ));
@@ -829,8 +892,8 @@ class CoinsnapCf7 {
 		], ['%d', '%s', '%s', '%s', '%s', '%s', '%f', '%s']   );
                 
 		if ( $wpdb->last_error != '' ) {
-			CoinsnapCf7_Security::log( 'info', 'entry insert failed' );
-			return false;
+			CoinsnapCf7_Security::log( 'info', 'entry insert failed', '', 'payment' );
+			return $this->payment_unavailable_message();
 		}
                 
                 $invoice_no = $wpdb->insert_id;
@@ -863,93 +926,109 @@ class CoinsnapCf7 {
                 
                 $checkInvoice = $this->coinsnapcf7_amount_validation( $amount, $currency );
                 
-                if($checkInvoice['result'] === true){
+                if($checkInvoice['result'] !== true){
+                    return $this->amount_error_message( $checkInvoice, (string) $currency );
+                }
 
-                    $return_url = get_post_meta( $post_id, "_cf7_coinsnap_s_url", true );
-                    
-		
-                    // orderId / orderNumber stay the entry ID: the webhook matches the invoice to the entry by it.
-                    $tags = [];
-                    foreach ( $wpcf7->scan_form_tags() as $tag ) {
-                        $tags[] = [ 'basetype' => (string) $tag->basetype, 'name' => (string) $tag->name ];
-                    }
-                    $metadata = CoinsnapCf7_Metadata::for_entry( [
-                        'entry_id'   => $invoice_no,
-                        'form_id'    => $post_id,
-                        'form_title' => $wpcf7->title(),
-                        'tags'       => $tags,
-                        'posted'     => (array) $submission->get_posted_data(),
-                        'name'       => $buyerName,
-                        'email'      => $buyerEmail,
-                        'page_url'   => (string) $submission->get_meta( 'url' ),
-                        'post_id'    => (int) $submission->get_meta( 'container_post_id' ),
-                        'version'    => COINSNAPCF7_VERSION,
-                        'language'   => function_exists( 'determine_locale' ) ? determine_locale() : get_locale(),
-                    ] );
-
-                    if($this->get_payment_provider() === 'btcpay' && $currency !== 'BTC'){
-                        $store = new \Coinsnap\Client\Store($this->getApiUrl(), $this->getApiKey());
-                        $btcpayCurrencies = $store -> getStoreCurrenciesRates($this->getStoreId(),array($currency));
-                        $isCurrency = true;
-                        if(!isset($btcpayCurrencies['result']['error']) && count($btcpayCurrencies['result']['currencies'])>0){
-                                if(!isset($btcpayCurrencies['result']['currencies']['BTC_'.$currency])){
-                                    $isCurrency = false;
-                                }
-                        }
-                        else {
-                            $isCurrency = false;
-                        }
-
-                        // Handle currencies non-supported by BTCPay Server, we need to change them BTC and adjust the amount.
-                        if( !$isCurrency ){
-                                $currency = 'BTC';
-                                $rate = 1/$checkInvoice['rate'];
-                                $amountBTC = bcdiv(strval($amount), strval($rate), 8);
-                                $amount = (float)$amountBTC;
-                        }
-                    }
-
-                    $camount = ($currency === 'BTC')? \Coinsnap\Util\PreciseNumber::parseFloat($amount,8) : \Coinsnap\Util\PreciseNumber::parseFloat($amount,2);
-                    
-                    $walletMessage = '';
-                    
-                    try {
+                $return_url = get_post_meta( $post_id, "_cf7_coinsnap_s_url", true );
                 
-                        $csinvoice = $client->createInvoice(
-                            $this->getStoreId(),
-                            strtoupper( $currency ),
-                            $camount,
-                            $invoice_no,
-                            $buyerEmail,
-                            $buyerName,
-                            $return_url,
-                            COINSNAPCF7_REFERRAL_CODE,
-                            $metadata,
-                            $redirectAutomatically,
-                            $walletMessage
-                        );
+		
+                // orderId / orderNumber stay the entry ID: the webhook matches the invoice to the entry by it.
+                $tags = [];
+                foreach ( $wpcf7->scan_form_tags() as $tag ) {
+                    $tags[] = [ 'basetype' => (string) $tag->basetype, 'name' => (string) $tag->name ];
+                }
+                $metadata = CoinsnapCf7_Metadata::for_entry( [
+                    'entry_id'   => $invoice_no,
+                    'form_id'    => $post_id,
+                    'form_title' => $wpcf7->title(),
+                    'tags'       => $tags,
+                    'posted'     => (array) $submission->get_posted_data(),
+                    'name'       => $buyerName,
+                    'email'      => $buyerEmail,
+                    'page_url'   => (string) $submission->get_meta( 'url' ),
+                    'post_id'    => (int) $submission->get_meta( 'container_post_id' ),
+                    'version'    => COINSNAPCF7_VERSION,
+                    'language'   => function_exists( 'determine_locale' ) ? determine_locale() : get_locale(),
+                ] );
 
-                        $invoiceData = $csinvoice->getData();
-                        // Keep what this invoice asks for: the webhook pays the entry only with this record (3, 6.7).
-                        if ( empty( $invoiceData['id'] ) || !CoinsnapCf7_Security::record_invoice( (string) $invoiceData['id'], (int) $invoice_no, (int) $post_id, $this->get_payment_provider(), $camount->__toString(), strtoupper( $currency ) ) ) {
-                            CoinsnapCf7_Security::log( 'info', 'invoice record failed' );
-                            return false;
-                        }
-                        $payurl = $invoiceData['checkoutLink'];
-                        wp_redirect( $payurl ); // phpcs:ignore WordPress.Security.SafeRedirect -- the provider's checkout page
-                        exit();
+                if($this->get_payment_provider() === 'btcpay' && $currency !== 'BTC'){
+                    $store = new \Coinsnap\Client\Store($this->getApiUrl(), $this->getApiKey());
+                    $btcpayCurrencies = $store -> getStoreCurrenciesRates($this->getStoreId(),array($currency));
+                    $isCurrency = true;
+                    if(!isset($btcpayCurrencies['result']['error']) && count($btcpayCurrencies['result']['currencies'])>0){
+                            if(!isset($btcpayCurrencies['result']['currencies']['BTC_'.$currency])){
+                                $isCurrency = false;
+                            }
                     }
-                    catch (\Throwable $e){
-                        CoinsnapCf7_Security::log( 'info', 'invoice create failed' );
-                        return false;
+                    else {
+                        $isCurrency = false;
+                    }
+
+                    // Handle currencies non-supported by BTCPay Server, we need to change them BTC and adjust the amount.
+                    if( !$isCurrency ){
+                            $currency = 'BTC';
+                            $rate = 1/$checkInvoice['rate'];
+                            $amountBTC = bcdiv(strval($amount), strval($rate), 8);
+                            $amount = (float)$amountBTC;
                     }
                 }
+
+                $camount = ($currency === 'BTC')? \Coinsnap\Util\PreciseNumber::parseFloat($amount,8) : \Coinsnap\Util\PreciseNumber::parseFloat($amount,2);
                 
-                else {
-                    return false;
+                $walletMessage = '';
+
+                // The library's exception leaves out the API's reply (it can echo request data, 6.13). Its
+                // error text is read here only to show it to this buyer; it is not logged.
+                $api_reply = '';
+                $capture_reply = static function ( $response, $context, $class, $args, $url ) use ( &$api_reply ) {
+                    if ( is_array( $response ) && strpos( (string) $url, '/invoices' ) !== false ) {
+                        $api_reply = (string) wp_remote_retrieve_body( $response );
+                    }
+                };
+                add_action( 'http_api_debug', $capture_reply, 10, 5 );
+
+                try {
+            
+                    $csinvoice = $client->createInvoice(
+                        $this->getStoreId(),
+                        strtoupper( $currency ),
+                        $camount,
+                        $invoice_no,
+                        $buyerEmail,
+                        $buyerName,
+                        $return_url,
+                        COINSNAPCF7_REFERRAL_CODE,
+                        $metadata,
+                        $redirectAutomatically,
+                        $walletMessage
+                    );
+
+                    $invoiceData = $csinvoice->getData();
                 }
-		
-		exit();
+                catch (\Throwable $e){
+                    remove_action( 'http_api_debug', $capture_reply, 10 );
+                    $status = (int) $e->getCode();
+                    CoinsnapCf7_Security::log( 'info', 'invoice create failed (' . $status . ')', '', 'payment' );
+                    if ( $status === 400 || $status === 422 ) {
+                        // Coinsnap refuses e.g. amounts below the dust limit on a store without Lightning: show its reason.
+                        $api_text = self::api_error_text( $api_reply );
+                        return $api_text !== ''
+                            /* translators: 1: the payment provider's reason, as it sent it */
+                            ? sprintf( __( 'The payment provider refused this payment: %1$s', 'coinsnap-for-contact-form-7' ), $api_text )
+                            : __( 'The payment provider refused this payment. The amount may be too low.', 'coinsnap-for-contact-form-7' );
+                    }
+                    return $this->payment_unavailable_message();
+                }
+                remove_action( 'http_api_debug', $capture_reply, 10 );
+
+                // Keep what this invoice asks for: the webhook pays the entry only with this record (3, 6.7).
+                if ( empty( $invoiceData['id'] ) || empty( $invoiceData['checkoutLink'] ) || !CoinsnapCf7_Security::record_invoice( (string) $invoiceData['id'], (int) $invoice_no, (int) $post_id, $this->get_payment_provider(), $camount->__toString(), strtoupper( $currency ) ) ) {
+                    CoinsnapCf7_Security::log( 'info', 'invoice record failed', '', 'payment' );
+                    return $this->payment_unavailable_message();
+                }
+                wp_redirect( $invoiceData['checkoutLink'] ); // phpcs:ignore WordPress.Security.SafeRedirect -- the provider's checkout page
+                exit();
 
 	}
 

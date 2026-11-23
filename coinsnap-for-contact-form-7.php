@@ -35,6 +35,7 @@ register_deactivation_hook( __FILE__, "coinsnapcf7_deactivate" );
 
 require_once( plugin_dir_path( __FILE__ ) . 'class-coinsnapcf7-security.php' );
 require_once( plugin_dir_path( __FILE__ ) . 'class-coinsnapcf7-metadata.php' );
+require_once( plugin_dir_path( __FILE__ ) . 'class-coinsnapcf7-rates.php' );
 
 class cf7_coinsnap {
     public static function load() {

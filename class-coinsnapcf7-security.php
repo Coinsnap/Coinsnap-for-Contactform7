@@ -430,13 +430,14 @@ class CoinsnapCf7_Security {
     }
 
     /** $level: 'security' (someone may be faking a payment) or 'info'. Only a fixed reason and the invoice ID. */
-    public static function log(string $level, string $reason, string $invoiceId = ''): void {
+    /** $context names the flow in the log line: webhook, payment (form submission) or settings. */
+    public static function log(string $level, string $reason, string $invoiceId = '', string $context = 'webhook'): void {
         if ($level === 'security' && !self::security_log_allowed()) {
             return;
         }
         $id = substr((string) preg_replace('/[^A-Za-z0-9_-]/', '', $invoiceId), 0, 64);
         // phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log
-        error_log(sprintf('[coinsnap-for-contact-form-7] %s webhook reason=%s invoice=%s', strtoupper($level), $reason, $id !== '' ? $id : '-'));
+        error_log(sprintf('[coinsnap-for-contact-form-7] %s %s reason=%s invoice=%s', strtoupper($level), preg_replace('/[^a-z]/', '', $context), $reason, $id !== '' ? $id : '-'));
     }
 
     private static function security_log_allowed(): bool {
